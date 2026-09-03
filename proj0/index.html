@@ -25,143 +25,66 @@
   table.frames { width: 100%; border-collapse: collapse; margin-top: 16px; }
   table.frames td { width: 20%; padding: 4px; text-align: center; font-size: 0.8em; color: #666; }
   .gif { text-align: center; margin-top: 16px; }
-  footer { margin-top: 50px; font-size: 0.85em; color: #777; border-top: 1px solid #ccc; padding-top: 12px; }
 </style>
 </head>
 <body>
 
 <h1>Project 0: Becoming Friends with Your Camera</h1>
-<p class="byline">CS180 &mdash; Intro to Computer Vision and Computational Photography, Fall 2026</p>
+<p class="byline">Alexander Tsai</p>
 
-<p>
-The goal of this project is to build some intuition for perspective, focal length, and the center of
-projection. All three parts use the same idea: if you change where the camera stands and change the
-focal length to keep the subject the same size in the frame, the subject looks roughly the same but
-everything <em>around</em> it changes dramatically. Distance to the subject &mdash; not the lens &mdash; is
-what controls perspective.
-</p>
-
-<h2>Part 1: Selfie &mdash; The Wrong Way and The Right Way</h2>
-
-<p>
-Two portraits of the same face, framed to about the same size. The first was shot up close at a
-24&nbsp;mm equivalent focal length. The second was shot from several feet back at 227&nbsp;mm.
-</p>
+<h2>Part 1</h2>
 
 <table class="pair">
   <tr>
     <td>
       <img src="images/face_zoom.jpg" alt="Close-up selfie at 24mm">
-      <div class="caption"><b>Close, no zoom &mdash; 24&nbsp;mm</b><br>Camera roughly an arm's length away.</div>
+      <div class="caption"><b>Close, no zoom, 24&nbsp;mm</b></div>
     </td>
     <td>
       <img src="images/face_unzoom.jpg" alt="Selfie from a distance at 227mm">
-      <div class="caption"><b>Far, zoomed in &mdash; 227&nbsp;mm</b><br>Several feet back, zoomed to match the framing.</div>
+      <div class="caption"><b>Far, zoomed in, 227&nbsp;mm</b></div>
     </td>
   </tr>
 </table>
 
-<p>
-<b>Why the second one looks better.</b> In the close shot the camera is only a foot or so from the face,
-so the nose is meaningfully closer to the lens than the ears are &mdash; maybe 20&ndash;30% closer. Because
-objects shrink with distance, that difference gets recorded: the nose and the cheeks balloon outward,
-the ears fall away, and the head takes on a rounded, stretched look. This is the standard "selfie face."
-</p>
-<p>
-Stepping back to several feet makes the nose-to-ear distance a tiny fraction of the total camera-to-face
-distance, so every part of the face is at essentially the same depth and gets scaled by the same amount.
-The result is a flatter, more even, more familiar-looking face. Zooming in only crops and magnifies &mdash;
-it does not change perspective. The improvement comes entirely from moving the camera back.
-</p>
-
-<h2>Part 2: Architectural Perspective</h2>
-
-<p>
-The facade of the Life Sciences Building, shot twice at roughly the same size in frame: once from far
-away at 53&nbsp;mm, and once from up close at 19&nbsp;mm.
-</p>
+<h2>Part 2</h2>
 
 <table class="pair">
   <tr>
     <td>
       <img src="images/building_zoom.jpg" alt="Building shot from far away with zoom">
-      <div class="caption"><b>Far, zoomed in &mdash; 53&nbsp;mm</b><br>Compressed and flattened.</div>
+      <div class="caption"><b>Far, zoomed in, 53&nbsp;mm</b></div>
     </td>
     <td>
       <img src="images/building_unzoom.jpg" alt="Building shot up close without zoom">
-      <div class="caption"><b>Close, no zoom &mdash; 19&nbsp;mm</b><br>Exaggerated depth.</div>
+      <div class="caption"><b>Close, no zoom, 19&nbsp;mm</b></div>
     </td>
   </tr>
 </table>
 
-<p>
-<b>What changed.</b> In the zoomed shot the building reads almost like a flat elevation drawing. The columns
-stay close to vertical and parallel, the row of columns across the facade is nearly uniform in width, and
-the steps in the foreground are shallow and unremarkable. Because the camera is far away, the near and far
-edges of the building differ only slightly in distance, so they are drawn at nearly the same scale and the
-depth of the structure collapses.
-</p>
-<p>
-Walking up to the building and going wide inverts all of that. The stairs, which are now only a few feet
-from the lens, dominate the bottom of the frame and rush away from the viewer. The columns splay outward
-and lean, and lines that are parallel in the real building visibly converge. The facade now reads as a
-three-dimensional object with real depth instead of a flat surface. Again, the lens change only kept the
-building filling the frame; the perspective change came from standing closer.
-</p>
-
-<h2>Part 3: Dolly Zoom (the "Vertigo Shot")</h2>
-
-<p>
-Ten frames of a stone fountain, shot while walking backwards and zooming in at the same time so the
-fountain stayed about the same size in every frame. The focal length climbs from 24&nbsp;mm in the first
-frame to 184&nbsp;mm in the last. The GIF below plays the sequence forward and back.
-</p>
+<h2>Part 3</h2>
 
 <div class="gif">
   <img src="images/dollyzoom.gif" alt="Dolly zoom animated GIF">
-  <div class="caption">Subject fixed, background breathing in and out.</div>
+  <div class="caption"><b>Dolly zoom, 10 frames, 24&nbsp;mm to 184&nbsp;mm</b></div>
 </div>
-
-<p>
-<b>What is happening.</b> The fountain is locked in place, but the wall, the brick, and the plants behind it
-swell forward and then fall back. Walking backwards shrinks everything in the scene, but it shrinks the
-nearby fountain much faster than the far wall, since the same few feet of retreat is a large fractional
-change for the fountain and a small one for the background. Zooming in to restore the fountain's size then
-magnifies the background along with it, so the background ends up much larger relative to the subject than
-it started. The scene appears to compress and flatten around a subject that never moves.
-</p>
-
-<p>The individual frames, in order:</p>
 
 <table class="frames">
   <tr>
-    <td><a href="images/dolly1.jpg"><img src="images/thumbs/dolly1.jpg" alt="Frame 1"></a><br>1 &mdash; 24 mm</td>
+    <td><a href="images/dolly1.jpg"><img src="images/thumbs/dolly1.jpg" alt="Frame 1"></a><br>1 (24 mm)</td>
     <td><a href="images/dolly2.jpg"><img src="images/thumbs/dolly2.jpg" alt="Frame 2"></a><br>2</td>
-    <td><a href="images/dolly3.jpg"><img src="images/thumbs/dolly3.jpg" alt="Frame 3"></a><br>3 &mdash; 51 mm</td>
+    <td><a href="images/dolly3.jpg"><img src="images/thumbs/dolly3.jpg" alt="Frame 3"></a><br>3 (51 mm)</td>
     <td><a href="images/dolly4.jpg"><img src="images/thumbs/dolly4.jpg" alt="Frame 4"></a><br>4</td>
     <td><a href="images/dolly5.jpg"><img src="images/thumbs/dolly5.jpg" alt="Frame 5"></a><br>5</td>
   </tr>
   <tr>
-    <td><a href="images/dolly6.jpg"><img src="images/thumbs/dolly6.jpg" alt="Frame 6"></a><br>6 &mdash; 108 mm</td>
+    <td><a href="images/dolly6.jpg"><img src="images/thumbs/dolly6.jpg" alt="Frame 6"></a><br>6 (108 mm)</td>
     <td><a href="images/dolly7.jpg"><img src="images/thumbs/dolly7.jpg" alt="Frame 7"></a><br>7</td>
     <td><a href="images/dolly8.jpg"><img src="images/thumbs/dolly8.jpg" alt="Frame 8"></a><br>8</td>
     <td><a href="images/dolly9.jpg"><img src="images/thumbs/dolly9.jpg" alt="Frame 9"></a><br>9</td>
-    <td><a href="images/dolly10.jpg"><img src="images/thumbs/dolly10.jpg" alt="Frame 10"></a><br>10 &mdash; 184 mm</td>
+    <td><a href="images/dolly10.jpg"><img src="images/thumbs/dolly10.jpg" alt="Frame 10"></a><br>10 (184 mm)</td>
   </tr>
 </table>
-
-<h2>Takeaway</h2>
-<p>
-The same lesson shows up three times. Perspective &mdash; how strongly near things loom over far things &mdash;
-is set by where the center of projection sits relative to the scene, and by nothing else. Focal length only
-decides how much of the resulting projection you crop into the frame. That is why the fix for a bad portrait
-is to back up, why a building looks flat from across the street, and why the dolly zoom works at all: it
-changes the two knobs in opposite directions so one subject stays put while the world behind it warps.
-</p>
-
-<footer>
-All photographs taken with an iPhone. Focal lengths are 35&nbsp;mm equivalents read from image EXIF data.
-</footer>
 
 </body>
 </html>
