@@ -4,26 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CS180 Project 0: Becoming Friends with Your Camera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   body {
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 15px;
     max-width: 900px;
     margin: 0 auto;
     padding: 30px 20px 60px 20px;
-    line-height: 1.6;
+    line-height: 1.7;
     color: #222;
     background: #fff;
   }
-  h1 { margin-bottom: 4px; }
-  h2 { border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-top: 44px; }
+  h1 { font-size: 1.5em; margin-bottom: 4px; }
+  h2 { font-size: 1.15em; border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-top: 44px; }
   .byline { color: #666; margin-top: 0; }
   table.pair { width: 100%; border-collapse: collapse; margin-top: 16px; }
   table.pair td { width: 50%; vertical-align: top; padding: 6px; text-align: center; }
   img { max-width: 100%; height: auto; border: 1px solid #ddd; }
-  .caption { font-size: 0.9em; color: #555; margin-top: 6px; }
+  .caption { font-size: 0.85em; color: #555; margin-top: 6px; }
   .caption b { color: #222; }
   table.frames { width: 100%; border-collapse: collapse; margin-top: 16px; }
-  table.frames td { width: 20%; padding: 4px; text-align: center; font-size: 0.8em; color: #666; }
+  table.frames td { width: 20%; padding: 4px; text-align: center; font-size: 0.75em; color: #666; }
   .gif { text-align: center; margin-top: 16px; }
   .reflection { margin-top: 18px; }
 </style>
@@ -49,10 +53,10 @@
 </table>
 
 <p class="reflection">
-My hypothesis is that when the camera is much closer, features that differ in distance from the camera,
-like the nose compared to the cheek, become much more distorted. When the camera is further away, the
-nose being slightly closer than the cheek matters much less, so there is much less distortion around
-the face.
+My hypothesis is that when the camera is much closer, features that differ in their distance from the
+camera, like the nose compared to the cheek, become much more distorted. As the camera moves further
+away, that difference matters much less, since the nose being slightly closer than the cheek is small
+compared to the overall distance. The result is much less distortion around the face.
 </p>
 
 <h2>Part 2</h2>
@@ -71,9 +75,9 @@ the face.
 </table>
 
 <p class="reflection">
-The building appears flattened in the first picture because we are able to capture the whole building
-from far away. When we get closer, we are trying to maintain the same field of view, but we do not have
-enough distance to maintain it, so the building looks slightly warped or curvy.
+The building looks flattened in the first picture because from far away we can capture the whole
+building at once. When we get closer, we are still trying to hold the same field of view, but we no
+longer have enough distance to do it, so the building ends up looking slightly warped or curvy.
 </p>
 
 <h2>Part 3</h2>
@@ -99,6 +103,12 @@ enough distance to maintain it, so the building looks slightly warped or curvy.
     <td><a href="images/dolly10.jpg"><img src="images/thumbs/dolly10.jpg" alt="Frame 10"></a><br>10 (184 mm)</td>
   </tr>
 </table>
+
+<p class="reflection">
+This is just the steps from Part 1 repeated many times. Each frame backs the camera up a little and
+zooms in to keep the fountain the same size, so what happened once between the two selfies happens
+gradually across all ten frames.
+</p>
 
 </body>
 </html>
