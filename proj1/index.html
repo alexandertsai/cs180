@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CS180 Project 1</title><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"><style>body{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;font-size:15px;max-width:900px;margin:0 auto;padding:30px 20px 60px;line-height:1.7;color:#222;background:#fff}h1{font-size:1.5em;margin-bottom:4px}h2{font-size:1.15em;border-bottom:1px solid #ccc;padding-bottom:6px;margin-top:44px}h1+p{color:#666;margin-top:0}a{color:#315674}img{max-width:100%;height:auto;border:1px solid #ddd;box-sizing:border-box}figure{margin:0;min-width:0}figcaption{font-size:.85em;color:#555;text-align:center;margin-top:6px}.pair,.gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}.gallery{row-gap:28px}.single-results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}pre{background:#f5f5f5;border:1px solid #ddd;padding:16px;overflow:auto;font-size:13px;line-height:1.6}code{font-family:inherit}table{width:100%;border-collapse:collapse;font-size:12px;margin:20px 0}th,td{padding:8px 5px;border-bottom:1px solid #ddd;text-align:left}th{background:#f5f5f5}@media(max-width:600px){body{font-size:14px;padding:20px 14px}.pair,.gallery{grid-template-columns:1fr}table{display:block;overflow-x:auto;white-space:nowrap}}@media print{body{max-width:none;font-size:11px}figure,pre{break-inside:avoid}}</style></head><body><h1>Project 1: Images of the Russian Empire</h1>
+<p>Alexander Tsai · CS180</p>
+<h2>Overview</h2>
+<p>The objective of this assignment was to combine a blue, green, and red exposure into a single color image. Each input is a grayscale image with the three exposures stacked vertically in B, G, R order. My program utilised some of the boilerplate code provided and split the input into three equal parts. I then aligned the green and red channels against blue, and combined them into all into an RGB image.</p>
+<p>Before aligning, I convert the pixel values to floats between 0 and 1. My final method is <strong>pyramid alignment using NCC</strong>.</p>
+<h2>Single-scale alignment</h2>
+<p>I started with a simple implementation where I search every horizontal and vertical shift from −15 to +15 pixels. This is because images can be misaligned in any direction. For each shift, I use Euclidean distance (L2) to compare the channels and keep the shift with the lowest score.</p>
+<pre><code class="language-python">for v_dis in range(-max_dis, max_dis + 1):
+    for h_dis in range(-max_dis, max_dis + 1):
+        candidate = moving[
+            margin - v_dis:h - margin - v_dis,
+            margin - h_dis:w - margin - h_dis,
+        ]
+        diff = np.sqrt(np.sum((target - candidate) ** 2))
+        if diff &lt; min_diff:
+            min_diff = diff
+            v_best, h_best = v_dis, h_dis
+</code></pre>
+<p>I ignore the borders when comparing the channels because they can interfere with the alignment. I leave out a margin on all four sides when scoring. In the code, this is <code>max(max_dis, int(min(h, w) * 0.1))</code>. For example, if a channel is 300 × 400 pixels and the search radius is 15, the margin is 30 pixels. I included this to exclude the large black borders I noticed in each image. </p>
+<p>Below are the single-scale L2 results for Cathedral, Monastery, and Tobolsk.</p>
+<div class="single-results">
+<figure><img src="output/cathedral_single.jpg" alt="cathedral after single-scale alignment"><figcaption>Cathedral — single-scale</figcaption></figure>
+<figure><img src="output/monastery_single.jpg" alt="monastery after single-scale alignment"><figcaption>Monastery — single-scale</figcaption></figure>
+<figure><img src="output/tobolsk_single.jpg" alt="tobolsk after single-scale alignment"><figcaption>Tobolsk — single-scale</figcaption></figure>
+</div>
+
+<table>
+<thead>
+<tr>
+  <th>Image</th>
+  <th>Green (x, y)</th>
+  <th>Red (x, y)</th>
+  <th>Total time (s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Cathedral</td>
+  <td>(2, 5)</td>
+  <td>(3, 12)</td>
+  <td>0.066</td>
+</tr>
+<tr>
+  <td>Monastery</td>
+  <td>(2, -3)</td>
+  <td>(2, 3)</td>
+  <td>0.067</td>
+</tr>
+<tr>
+  <td>Tobolsk</td>
+  <td>(3, 3)</td>
+  <td>(3, 6)</td>
+  <td>0.072</td>
+</tr>
+</tbody>
+</table>
+<h2>Pyramid alignment</h2>
+<p>For large TIFF files, repeating the previous naive approach would be expensive. Hence, I switch to using an image pyramid to estimate the shifts on smaller images and progressively refine them.</p>
+<p>At each level, I use a 3 × 3 box average for smoothing, then downsample by literally taking every second row and column. Smoothing helps reduce aliasing before downsampling. At the smaller levels, calculating a metric like NCC is computationally cheaper because there are simply fewer pixel values involved.</p>
+<pre><code class="language-python">def downsample(image):
+    return image[::2, ::2]
+
+smaller = downsample(blur_image(image))
+</code></pre>
+<p>I repeat this recursively until the channel height is below 200 pixels (determined experimentally), then run the original ±15-pixel search. As I return to each larger image, I double the shift because the resolution doubles, then search another ±5 pixels around that estimate to refine the alignment. I use a window size of 5 pixels to reduce computational strain.</p>
+<pre><code class="language-python">v_best, h_best = 2 * v_best, 2 * h_best
+moving = np.roll(moving, (v_best, h_best), axis=(0, 1))
+v_diff, h_diff = calc_diff(reference, moving, max_dis=5, ncc=True)[1:]
+return v_best + v_diff, h_best + h_diff
+</code></pre>
+<p>Finally, I apply the shifts to the original images and combine the channels.</p>
+<h2>Why I chose NCC over L2</h2>
+<p>Initially, I used L2 since the implementation was easy. However, I realized there were issues with Church and Novinki. Each exposure was taken through a different color filter. For example, a blue object can look bright in the blue exposure but dark in the red exposure, even at the correct alignment. L2 directly compares these brightness pixel values and ultimately did not perform well.</p>
+<p>After switching to normalized cross-correlation (NCC), I saw these issues go away. My analysis is that NCC fixes these brightness issues and normalizes each region before comparing them. This makes it less sensitive to overall brightness and contrast differences. I use the negative correlation so that the existing search still picks the lowest score.</p>
+<pre><code class="language-python">target = target - target.mean()
+target = target / (np.sqrt(np.sum(target ** 2)) + 1e-8)  # 1e-8 avoids division by zero
+candidate = candidate - candidate.mean()
+candidate = candidate / (np.sqrt(np.sum(candidate ** 2)) + 1e-8)
+diff = -np.sum(target * candidate)
+</code></pre>
+<div class="pair">
+<figure><a href="output/church_pyramid.jpg"><img loading="lazy" src="output/church_pyramid.jpg" alt="Church — L2"></a><figcaption>Church — L2<br>G (391, 49), R (384, 76)<br>1.690 s total</figcaption></figure>
+<figure><a href="output/church_pyramid_ncc.jpg"><img loading="lazy" src="output/church_pyramid_ncc.jpg" alt="Church — NCC"></a><figcaption>Church — NCC<br>G (4, 25), R (-4, 58)<br>4.043 s total</figcaption></figure>
+</div>
+<div class="pair">
+<figure><a href="output/novinki_pyramid.jpg"><img loading="lazy" src="output/novinki_pyramid.jpg" alt="Novinki, Lake Sterzh — L2"></a><figcaption>Novinki, Lake Sterzh — L2<br>G (220, 11), R (14, 32)<br>1.762 s total</figcaption></figure>
+<figure><a href="output/novinki_pyramid_ncc.jpg"><img loading="lazy" src="output/novinki_pyramid_ncc.jpg" alt="Novinki, Lake Sterzh — NCC"></a><figcaption>Novinki, Lake Sterzh — NCC<br>G (13, 19), R (14, 32)<br>4.452 s total</figcaption></figure>
+</div>
+<h2>Final NCC results</h2>
+<p>Below are the NCC pyramid results for all 14 supplied images and three additional images I selected from the Library of Congress collection. I use the full-size files and the same settings for every image. The offsets are listed as (x, y), where positive x shifts right and positive y shifts down. Total time was measured on a M5 Macbook Pro.</p>
+<h3>Supplied images</h3>
+<div class="gallery">
+<figure><a href="output/cathedral_pyramid_ncc.jpg"><img loading="lazy" src="output/cathedral_pyramid_ncc.jpg" alt="Cathedral"></a><figcaption>Cathedral<br>G (2, 5), R (3, 12)<br>0.083 s total</figcaption></figure>
+<figure><a href="output/church_pyramid_ncc.jpg"><img loading="lazy" src="output/church_pyramid_ncc.jpg" alt="Church"></a><figcaption>Church<br>G (4, 25), R (-4, 58)<br>4.043 s total</figcaption></figure>
+<figure><a href="output/emir_pyramid_ncc.jpg"><img loading="lazy" src="output/emir_pyramid_ncc.jpg" alt="Emir"></a><figcaption>Emir<br>G (24, 49), R (-405, 416)<br>4.132 s total</figcaption></figure>
+<figure><a href="output/harvesters_pyramid_ncc.jpg"><img loading="lazy" src="output/harvesters_pyramid_ncc.jpg" alt="Harvesters"></a><figcaption>Harvesters<br>G (17, 60), R (14, 124)<br>4.140 s total</figcaption></figure>
+<figure><a href="output/icon_pyramid_ncc.jpg"><img loading="lazy" src="output/icon_pyramid_ncc.jpg" alt="Icon"></a><figcaption>Icon<br>G (17, 41), R (23, 89)<br>4.237 s total</figcaption></figure>
+<figure><a href="output/ilemselga_pyramid_ncc.jpg"><img loading="lazy" src="output/ilemselga_pyramid_ncc.jpg" alt="Ilemselga"></a><figcaption>Ilemselga<br>G (7, 40), R (11, 130)<br>4.356 s total</figcaption></figure>
+<figure><a href="output/melons_pyramid_ncc.jpg"><img loading="lazy" src="output/melons_pyramid_ncc.jpg" alt="Melons"></a><figcaption>Melons<br>G (11, 82), R (13, 178)<br>4.321 s total</figcaption></figure>
+<figure><a href="output/monastery_pyramid_ncc.jpg"><img loading="lazy" src="output/monastery_pyramid_ncc.jpg" alt="Monastery"></a><figcaption>Monastery<br>G (2, -3), R (2, 3)<br>0.086 s total</figcaption></figure>
+<figure><a href="output/religous_painting_pyramid_ncc.jpg"><img loading="lazy" src="output/religous_painting_pyramid_ncc.jpg" alt="Religious Painting"></a><figcaption>Religious Painting<br>G (3, 28), R (7, 68)<br>4.449 s total</figcaption></figure>
+<figure><a href="output/self_portrait_pyramid_ncc.jpg"><img loading="lazy" src="output/self_portrait_pyramid_ncc.jpg" alt="Self Portrait"></a><figcaption>Self Portrait<br>G (29, 79), R (36, 176)<br>4.371 s total</figcaption></figure>
+<figure><a href="output/siren_pyramid_ncc.jpg"><img loading="lazy" src="output/siren_pyramid_ncc.jpg" alt="Siren"></a><figcaption>Siren<br>G (-6, 49), R (-25, 96)<br>4.497 s total</figcaption></figure>
+<figure><a href="output/three_generations_pyramid_ncc.jpg"><img loading="lazy" src="output/three_generations_pyramid_ncc.jpg" alt="Three Generations"></a><figcaption>Three Generations<br>G (14, 53), R (11, 112)<br>4.215 s total</figcaption></figure>
+<figure><a href="output/tobolsk_pyramid_ncc.jpg"><img loading="lazy" src="output/tobolsk_pyramid_ncc.jpg" alt="Tobolsk"></a><figcaption>Tobolsk<br>G (3, 3), R (3, 6)<br>0.087 s total</figcaption></figure>
+<figure><a href="output/wharf_pyramid_ncc.jpg"><img loading="lazy" src="output/wharf_pyramid_ncc.jpg" alt="Wharf"></a><figcaption>Wharf<br>G (-7, 15), R (-16, 83)<br>4.402 s total</figcaption></figure>
+</div>
+<h3>Additional examples</h3>
+<div class="gallery">
+<figure><a href="output/kostroma_courtyard_pyramid_ncc.jpg"><img loading="lazy" src="output/kostroma_courtyard_pyramid_ncc.jpg" alt="Kostroma Courtyard"></a><figcaption>Kostroma Courtyard<br>G (19, 48), R (35, 109)<br>4.120 s total<br><a href="https://www.loc.gov/item/2018680637/">Library of Congress source</a></figcaption></figure>
+<figure><a href="output/suzdal_pyramid_ncc.jpg"><img loading="lazy" src="output/suzdal_pyramid_ncc.jpg" alt="Suzdal"></a><figcaption>Suzdal<br>G (-11, 59), R (-47, 120)<br>4.249 s total<br><a href="https://www.loc.gov/item/2018681148/">Library of Congress source</a></figcaption></figure>
+<figure><a href="output/novinki_pyramid_ncc.jpg"><img loading="lazy" src="output/novinki_pyramid_ncc.jpg" alt="Novinki, Lake Sterzh"></a><figcaption>Novinki, Lake Sterzh<br>G (13, 19), R (14, 32)<br>4.452 s total<br><a href="https://www.loc.gov/item/2018680346/">Library of Congress source</a></figcaption></figure>
+</div>
+<h2>Remaining failure</h2>
+<p>Emir still fails. We can observe that the red channel has moved to the wrong position. NCC can handle one exposure being brighter overall, but it cannot fully handle individual objects changing brightness differently between exposures. For example, Emir's blue clothing can look bright through the blue filter and dark through the red filter, while other parts of the scene behave differently. Interestingly enough, experiments showed that the L2 had better results than NCC for Emir.</p>
+</body></html>
