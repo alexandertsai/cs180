@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS180 Project 2: Fun with Filters and Frequencies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 15px;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px 60px 20px;
+    line-height: 1.7;
+    color: #222;
+    background: #fff;
+  }
+  h1 { font-size: 1.5em; margin-bottom: 4px; }
+  h2 { font-size: 1.15em; border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-top: 44px; }
+  h3 { font-size: 1em; margin-top: 28px; }
+  .byline { color: #666; margin-top: 0; }
+  table.row { width: 100%; border-collapse: collapse; margin-top: 16px; table-layout: fixed; }
+  table.row td { vertical-align: top; padding: 6px; text-align: center; }
+  img { max-width: 100%; height: auto; border: 1px solid #ddd; }
+  .caption { font-size: 0.85em; color: #555; margin-top: 6px; }
+  .caption b { color: #222; }
+  .wide { text-align: center; margin-top: 16px; }
+  .reflection { margin-top: 18px; }
+  pre { background: #f6f6f6; border: 1px solid #ddd; padding: 12px; overflow-x: auto; font-size: 0.8em; line-height: 1.5; }
+  pre code { font-family: inherit; }
+  @media (max-width: 600px) {
+    body { font-size: 13px; padding: 20px 14px; }
+    table.row:not(.timings), table.row:not(.timings) tbody { display: block; }
+    table.row:not(.timings) tr { display: flex; flex-wrap: wrap; }
+    table.row:not(.timings) td { box-sizing: border-box; width: 50%; }
+    table.timings { font-size: 11px; }
+  }
+  @media print {
+    body { max-width: none; padding: 0; font-size: 12px; line-height: 1.55; }
+    h2 { margin-top: 24px; }
+    h1, h2, h3 { break-after: avoid; }
+    table.row tr, .wide, pre { break-inside: avoid; }
+    table.row img { max-height: 65mm; width: auto; }
+    .wide img { max-height: 185mm; width: auto; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 9px; }
+    .caption { font-size: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Project 2: Fun with Filters and Frequencies</h1>
+<p class="byline">Alexander Tsai</p>
+
+<h2>Part 1.1: Convolutions from Scratch</h2>
+
+<p class="reflection">
+We implemented two versions of convolution using only numpy. The first uses four for loops: two over the image pixels and two over the filter. The second uses two for loops: for each pixel we take the patch of the image under the filter, multiply it by the filter, and sum.
+</p>
+<p class="reflection">
+Both versions flip the filter first, since that is the difference between convolution and cross-correlation. Both also pad the image with zeros, by half the filter size on each side, so the output has the same size as the input. The box filter is a 9x9 array of ones divided by 81, so its weights add up to one.
+</p>
+
+<pre><code>def pad(image, pad_h, pad_w):
+    h, w = image.shape
+    new_h = h + 2 * pad_h
+    new_w = w + 2 * pad_w
+    padded = np.zeros((new_h, new_w))
+    padded[pad_h : pad_h + h, pad_w : pad_w + w] = image
+    return padded
+
+def convolve_4loop(image, filter):
+    filter = np.flip(filter)  # Ensure the filter is flipped.
+    pad_h, pad_w = filter.shape[0] // 2, filter.shape[1] // 2
+    padded_image = pad(image, pad_h, pad_w)
+    output = np.zeros(image.shape)
+    for row_idx in range(image.shape[0]):
+        for column_idx in range(image.shape[1]):
+            for f_h_idx in range(filter.shape[0]):
+                for f_w_idx in range(filter.shape[1]):
+                    output[row_idx, column_idx] += filter[f_h_idx, f_w_idx] * padded_image[row_idx + f_h_idx, column_idx + f_w_idx]
+    return output
+
+def convolve_2loop(image, filter):
+    filter = np.flip(filter)  # Ensure the filter is flipped.
+    pad_h, pad_w = filter.shape[0] // 2, filter.shape[1] // 2
+    padded_image = pad(image, pad_h, pad_w)
+    output = np.zeros(image.shape)
+    for row_idx in range(image.shape[0]):
+        for column_idx in range(image.shape[1]):
+            mini_instance = padded_image[row_idx:(row_idx + filter.shape[0]), column_idx:(column_idx + filter.shape[1])]
+            output[row_idx, column_idx] = np.sum(mini_instance * filter)
+    return output</code></pre>
+
+<table class="row timings">
+  <tr>
+    <td><b>Method</b></td>
+    <td><b>Runtime (9x9 box, 500x375 image)</b></td>
+    <td><b>Max difference from scipy</b></td>
+  </tr>
+  <tr><td>Four loops</td><td>2.317 s</td><td>1.0e-15</td></tr>
+  <tr><td>Two loops</td><td>0.196 s</td><td>6.7e-16</td></tr>
+  <tr><td>scipy.signal.convolve2d</td><td>0.0103 s</td><td>-</td></tr>
+</table>
+
+<p class="reflection">
+There is basically no difference from the SciPy output. The largest difference in any pixel is about 1e-15, which is just floating point error. However, SciPy is much faster. The two-loop version is about 12 times faster than the four-loop version, and SciPy is about 19 times faster than the two-loop version.
+</p>
+<p class="reflection">
+For the boundary, we fill with zeros, which is also what <code>scipy.signal.convolve2d</code> does by default with <code>mode="same"</code>. That is why the two outputs match. One side effect is that the box filter result gets a little darker right at the border, since it averages in the zeros.
+</p>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p11_me.jpg" alt="Grayscale self-portrait"><div class="caption"><b>Original</b></div></td>
+    <td><img src="images/p11_box.jpg" alt="Self-portrait after 9x9 box filter"><div class="caption"><b>9x9 box filter</b></div></td>
+    <td><img src="images/p11_dx.jpg" alt="Self-portrait convolved with Dx"><div class="caption"><b>Dx</b></div></td>
+    <td><img src="images/p11_dy.jpg" alt="Self-portrait convolved with Dy"><div class="caption"><b>Dy</b></div></td>
+  </tr>
+</table>
+
+<h2>Part 1.2: Finite Difference Operator</h2>
+
+<pre><code>Dx = np.array([[1, 0, -1]])
+Dy = Dx.T
+box = np.ones((9, 9)) / 81</code></pre>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p12_dx.jpg" alt="Cameraman partial derivative in x"><div class="caption"><b>Partial derivative in x</b></div></td>
+    <td><img src="images/p12_dy.jpg" alt="Cameraman partial derivative in y"><div class="caption"><b>Partial derivative in y</b></div></td>
+  </tr>
+  <tr>
+    <td><img src="images/p12_mag.jpg" alt="Cameraman gradient magnitude"><div class="caption"><b>Gradient magnitude</b></div></td>
+    <td><img src="images/p12_edges.jpg" alt="Cameraman binarized edges"><div class="caption"><b>Binarized, threshold 0.33</b></div></td>
+  </tr>
+</table>
+
+<p class="reflection">
+We convolved the cameraman with Dx and Dy to get the partial derivatives in x and y. The gradient magnitude at each pixel is the square root of (dx squared plus dy squared). It is large wherever the brightness changes quickly, which is where the edges are.
+</p>
+<p class="reflection">
+We tried thresholds from 0.1 to 0.33 and ultimately decided on 0.33. That is where the noise from the grass almost completely disappears, yet the outline of the person and the camera still more or less stays intact. Lower thresholds keep more of the edges but also keep a lot of the grass.
+</p>
+
+<h2>Part 1.3: Derivative of Gaussian (DoG) Filter</h2>
+
+<h3>Blur, then finite difference</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p13_blur.jpg" alt="Cameraman blurred with a Gaussian"><div class="caption"><b>Blurred, 9x9 Gaussian, sigma 1.5</b></div></td>
+    <td><img src="images/p13_blur_dx.jpg" alt="Blurred cameraman partial derivative in x"><div class="caption"><b>Partial derivative in x</b></div></td>
+  </tr>
+  <tr>
+    <td><img src="images/p13_blur_dy.jpg" alt="Blurred cameraman partial derivative in y"><div class="caption"><b>Partial derivative in y</b></div></td>
+    <td><img src="images/p13_blur_mag.jpg" alt="Blurred cameraman gradient magnitude"><div class="caption"><b>Gradient magnitude</b></div></td>
+  </tr>
+</table>
+
+<h3>DoG filters</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p13_dog_x.jpg" alt="DoG x filter"><div class="caption"><b>DoG x filter</b></div></td>
+    <td><img src="images/p13_dog_y.jpg" alt="DoG y filter"><div class="caption"><b>DoG y filter</b></div></td>
+  </tr>
+</table>
+
+<h3>Edges</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p12_edges.jpg" alt="Edges from finite difference"><div class="caption"><b>Finite difference, threshold 0.33</b></div></td>
+    <td><img src="images/p13_blur_edges.jpg" alt="Edges from blur then finite difference"><div class="caption"><b>Blur then difference, threshold 0.1</b></div></td>
+    <td><img src="images/p13_dog_edges.jpg" alt="Edges from DoG filters"><div class="caption"><b>DoG, threshold 0.1</b></div></td>
+  </tr>
+</table>
+
+<p class="caption">Largest difference between the two gradient magnitudes (blur then difference versus one DoG convolution): 7.6e-16.</p>
+
+<p class="reflection">
+We created the Gaussian filter using <code>cv2.getGaussianKernel</code> (size 9, sigma 1.5) and multiplying it by its transpose to get a 2D filter. We blurred the cameraman with it and then repeated Part 1.2.
+</p>
+<p class="reflection">
+There are two main differences. One, the result is far less noisy. Two, the edges are far clearer and more continuous. This is because taking a derivative amplifies small pixel-to-pixel noise, and blurring first removes that noise before we take the derivative. The edges also come out a bit thicker, since the blur spreads them out. Because the blurred gradients are weaker, we could use a lower threshold of 0.1.
+</p>
+<p class="reflection">
+The DoG filters do the same thing, but in one step. We convolve the Gaussian with Dx and Dy first, and then convolve the image once with each result. Convolution is associative, so we can group the filters this way. We found that the largest difference between the two gradient magnitudes is 7.6e-16 (rather small). So they match.
+</p>
+<pre><code>kernel_part = cv.getGaussianKernel(ksize=9, sigma=1.5)
+G = kernel_part @ kernel_part.T
+
+DoG_x = convolve2d(G, Dx)
+DoG_y = convolve2d(G, Dy)
+gx_dog, gy_dog, mag_dog = gradient_magnitude(cameraman, DoG_x, DoG_y)</code></pre>
+
+<h2>Part 2.1: Image Sharpening</h2>
+
+<p class="reflection">
+We blur the image with a Gaussian filter (size 9, sigma 1.5), which keeps the low frequencies. Subtracting the blurred version from the original gives us the high-frequency details. We then add those details back to the original, scaled by alpha, to sharpen it. A bigger alpha means more sharpening.
+</p>
+<pre><code>G = gaussian_kernel(ksize=9, sigma=1.5)
+taj_blur = filter_color(taj, G)
+high = taj - taj_blur
+sharpened_taj = taj + alpha * high</code></pre>
+
+<p class="reflection">
+We can also do this in one convolution. The filter is (1 + alpha) times the identity filter minus alpha times the Gaussian. The identity filter just keeps the original pixel. This gives the same result as subtracting the blur and adding back the details.
+</p>
+<pre><code>def unsharp_mask(image, alpha, gaussian):
+    impulse = np.zeros_like(gaussian)
+    impulse[gaussian.shape[0] // 2, gaussian.shape[1] // 2] = 1
+    kernel = (1 + alpha) * impulse - alpha * gaussian
+    return filter_color(image, kernel)</code></pre>
+
+<h3>Taj Mahal</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p21_taj.jpg" alt="Taj Mahal original"><div class="caption"><b>Original</b></div></td>
+    <td><img src="images/p21_taj_blur.jpg" alt="Taj Mahal blurred"><div class="caption"><b>Blurred, sigma 1.5</b></div></td>
+    <td><img src="images/p21_taj_high.jpg" alt="Taj Mahal high frequencies"><div class="caption"><b>High frequencies, rescaled</b></div></td>
+    <td><img src="images/p21_taj_sharp.jpg" alt="Taj Mahal sharpened"><div class="caption"><b>Sharpened, alpha 1</b></div></td>
+  </tr>
+</table>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p21_taj_a1.jpg" alt="Taj Mahal alpha 1"><div class="caption"><b>alpha 1</b></div></td>
+    <td><img src="images/p21_taj_a2.jpg" alt="Taj Mahal alpha 2"><div class="caption"><b>alpha 2</b></div></td>
+    <td><img src="images/p21_taj_a5.jpg" alt="Taj Mahal alpha 5"><div class="caption"><b>alpha 5</b></div></td>
+  </tr>
+</table>
+
+<h3>My own blurry image</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p21_blurry.jpg" alt="Blurry photo original"><div class="caption"><b>Original</b></div></td>
+    <td><img src="images/p21_blurry_blur.jpg" alt="Blurry photo after Gaussian filtering"><div class="caption"><b>Blurred, sigma 1.5</b></div></td>
+    <td><img src="images/p21_blurry_high.jpg" alt="High frequencies of the blurry photo"><div class="caption"><b>High frequencies, rescaled</b></div></td>
+    <td><img src="images/p21_blurry_a5.jpg" alt="Blurry photo sharpened with alpha 5"><div class="caption"><b>Sharpened, alpha 5</b></div></td>
+  </tr>
+</table>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p21_blurry.jpg" alt="Blurry image original"><div class="caption"><b>Original</b></div></td>
+    <td><img src="images/p21_blurry_a1.jpg" alt="Blurry image alpha 1"><div class="caption"><b>alpha 1</b></div></td>
+  </tr>
+  <tr>
+    <td><img src="images/p21_blurry_a2.jpg" alt="Blurry image alpha 2"><div class="caption"><b>alpha 2</b></div></td>
+    <td><img src="images/p21_blurry_a5.jpg" alt="Blurry image alpha 5"><div class="caption"><b>alpha 5</b></div></td>
+  </tr>
+</table>
+
+<h3>Blur a sharp image, then sharpen it again</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p21_resharpen_orig.jpg" alt="Sharp original"><div class="caption"><b>Original</b></div></td>
+    <td><img src="images/p21_resharpen_blur.jpg" alt="Blurred version"><div class="caption"><b>Blurred</b></div></td>
+    <td><img src="images/p21_resharpen_sharp.jpg" alt="Re-sharpened version"><div class="caption"><b>Re-sharpened, alpha 2</b></div></td>
+  </tr>
+</table>
+
+<p class="reflection">
+For the Taj, alpha around 1 to 2 looked the sharpest without distorting the image. Alpha values that were too high resulted in distorted-looking images with harsh edges and noise. For my own blurry image, I chose an alpha of 5 despite it not being perfect.
+</p>
+<p class="reflection">
+For the last test we took a sharp image, blurred it, and sharpened it again. The re-sharpened image looks better than the blurred one, but it still does not match the original. The blur weakens the finest details, and sharpening can only boost the details that are still there. This unsharp mask does not undo the blur.
+</p>
+
+<h2>Part 2.2: Hybrid Images</h2>
+
+<p class="reflection">
+For each hybrid, we keep the broad shapes from one image and the fine details from the other. A Gaussian keeps the low frequencies. Subtracting a Gaussian blur from an image gives its high frequencies. The sigmas below are in pixels. A larger sigma means a lower frequency cutoff.
+</p>
+
+<h3>Hybrid 1: Derek + Nutmeg</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p22_derek_original.jpg" alt="Derek before alignment"><div class="caption"><b>Derek, original</b></div></td>
+    <td><img src="images/p22_nutmeg_original.jpg" alt="Nutmeg before alignment"><div class="caption"><b>Nutmeg, original</b></div></td>
+  </tr>
+</table>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p22_derek_aligned.jpg" alt="Derek aligned"><div class="caption"><b>Derek, aligned</b></div></td>
+    <td><img src="images/p22_nutmeg_aligned.jpg" alt="Nutmeg aligned"><div class="caption"><b>Nutmeg, aligned</b></div></td>
+    <td><img src="images/p22_derek_low.jpg" alt="Derek low-pass"><div class="caption"><b>Derek low-pass, sigma 10</b></div></td>
+    <td><img src="images/p22_nutmeg_high.jpg" alt="Nutmeg high-pass"><div class="caption"><b>Nutmeg high-pass, sigma 4</b></div></td>
+  </tr>
+</table>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p22_fft_derek.jpg" alt="FFT of Derek"><div class="caption"><b>FFT: Derek</b></div></td>
+    <td><img src="images/p22_fft_nutmeg.jpg" alt="FFT of Nutmeg"><div class="caption"><b>FFT: Nutmeg</b></div></td>
+    <td><img src="images/p22_fft_derek_low.jpg" alt="FFT of Derek low-pass"><div class="caption"><b>FFT: Derek low-pass</b></div></td>
+    <td><img src="images/p22_fft_nutmeg_high.jpg" alt="FFT of Nutmeg high-pass"><div class="caption"><b>FFT: Nutmeg high-pass</b></div></td>
+    <td><img src="images/p22_fft_hybrid.jpg" alt="FFT of hybrid"><div class="caption"><b>FFT: hybrid</b></div></td>
+  </tr>
+</table>
+
+<div class="wide">
+  <img src="images/p22_hybrid_derek_nutmeg.jpg" alt="Derek and Nutmeg hybrid image">
+  <div class="caption"><b>Hybrid</b></div>
+</div>
+
+<p class="reflection">
+We first struggled with aligning Derek and Nutmeg. We used the provided alignment code and clicked on the eyes in both images, then cropped both to the same region. Once aligned, we low-pass filtered Derek and high-pass filtered Nutmeg (the image minus its blurred version), and added the two together.
+</p>
+<p class="reflection">
+To pick the cutoffs, we tried a grid of sigma values for both images and looked at each result up close and from far away. We picked sigma 10 for Derek and sigma 4 for Nutmeg. Up close you mostly see the cat, and from far away you mostly see Derek.
+</p>
+<pre><code>def low_pass(image, sigma):
+    ksize = int(6 * sigma) | 1
+    return filter_color(image, gaussian_kernel(ksize, sigma))
+
+def high_pass(image, sigma):
+    return image - low_pass(image, sigma)
+
+def hybrid_image(im_low, im_high, sigma_low, sigma_high):
+    return low_pass(im_low, sigma_low) + high_pass(im_high, sigma_high)</code></pre>
+
+<h3>Hybrid 2: selfie + Emma Watson drawing</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p22_hybrid2_low_original.jpg" alt="Selfie before alignment"><div class="caption"><b>Selfie, original</b></div></td>
+    <td><img src="images/p22_hybrid2_high_original.jpg" alt="Emma Watson drawing before alignment"><div class="caption"><b>Drawing, original</b></div></td>
+  </tr>
+</table>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p22_hybrid2_low_aligned.jpg" alt="Hybrid 2 low-frequency input"><div class="caption"><b>Selfie, aligned; low-pass sigma 12</b></div></td>
+    <td><img src="images/p22_hybrid2_high_aligned.jpg" alt="Hybrid 2 high-frequency input"><div class="caption"><b>Drawing, aligned; high-pass sigma 4</b></div></td>
+    <td><img src="images/p22_hybrid2.jpg" alt="Hybrid 2 result"><div class="caption"><b>Hybrid</b></div></td>
+  </tr>
+</table>
+
+<p class="reflection">
+One issue here is that the color schemes of the two images are quite different. The green background of the selfie stands out against the black and white drawing. The drawing also has weaker contrast, so its high frequencies are harder to see. We used sigma 12 for the selfie and sigma 4 for the drawing, and multiplied the high frequencies by 1.5 to make them more visible.
+</p>
+
+<h3>Hybrid 3: cruise (favorite, full process)</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p22_hybrid3_low_original.jpg" alt="First cruise photo before alignment"><div class="caption"><b>Photo 1, original</b></div></td>
+    <td><img src="images/p22_hybrid3_high_original.jpg" alt="Second cruise photo before alignment"><div class="caption"><b>Photo 2, original</b></div></td>
+  </tr>
+</table>
+
+<p class="reflection">
+This one is my favorite because I really enjoyed this cruise that I went on. We aligned matching points on the faces using the provided code. We tried low-pass sigmas of 2, 3, 4, and 6, and high-pass sigmas of 1, 1.5, 2, and 3. We picked 4 and 2. The faces are smaller here than in the Derek and Nutmeg pair, so smaller sigmas worked better. The different head poses still make the switch less clear, even though I like the photos.
+</p>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p22_hybrid3_low_aligned.jpg" alt="Cruise photo 1 aligned"><div class="caption"><b>Photo 1, aligned</b></div></td>
+    <td><img src="images/p22_hybrid3_high_aligned.jpg" alt="Cruise photo 2 aligned"><div class="caption"><b>Photo 2, aligned</b></div></td>
+  </tr>
+  <tr>
+    <td><img src="images/p22_h3_low.jpg" alt="Cruise photo 1 low-pass"><div class="caption"><b>Photo 1 low-pass, sigma 4</b></div></td>
+    <td><img src="images/p22_h3_high.jpg" alt="Cruise photo 2 high-pass"><div class="caption"><b>Photo 2 high-pass, sigma 2</b></div></td>
+  </tr>
+</table>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p22_fft_h3_a.jpg" alt="FFT of photo 1"><div class="caption"><b>FFT: photo 1</b></div></td>
+    <td><img src="images/p22_fft_h3_b.jpg" alt="FFT of photo 2"><div class="caption"><b>FFT: photo 2</b></div></td>
+    <td><img src="images/p22_fft_h3_low.jpg" alt="FFT of photo 1 low-pass"><div class="caption"><b>FFT: low-pass</b></div></td>
+    <td><img src="images/p22_fft_h3_high.jpg" alt="FFT of photo 2 high-pass"><div class="caption"><b>FFT: high-pass</b></div></td>
+    <td><img src="images/p22_fft_h3_hybrid.jpg" alt="FFT of hybrid"><div class="caption"><b>FFT: hybrid</b></div></td>
+  </tr>
+</table>
+
+<p class="reflection">
+These are the log magnitudes of the Fourier transforms, with the zero frequency moved to the center. The low-pass filter reduces the frequencies further from the center. The high-pass filter reduces the center and keeps more of the outer detail. The hybrid combines both. Each plot is rescaled for display, so the brightnesses are not directly comparable between plots.
+</p>
+<p class="reflection">
+There is also a cross pattern in the FFTs. These photos have a lot of horizontal and vertical features, such as the waterline and the buildings. Those features help create strong lines along the frequency axes. The image boundaries can contribute too. Photo 1 was rotated to get the alignment right, so some of its frequency lines are tilted as well. The hybrid combines both photos, so it has both tilted and straight lines, although the tilted ones are less obvious after filtering.
+</p>
+
+<div class="wide">
+  <img src="images/p22_hybrid3.jpg" alt="Cruise hybrid image">
+  <div class="caption"><b>Hybrid</b></div>
+</div>
+
+<h2>Part 2.3: Gaussian and Laplacian Stacks</h2>
+
+<p class="reflection">
+We implemented the Gaussian and Laplacian stacks with simple for loops. The Gaussian stack starts with the original image, and each level after that is the original blurred with a bigger sigma (2, 4, 6, 8).
+</p>
+<p class="reflection">
+Each Laplacian level is L[i] = G[i] - G[i + 1]. That leaves the details between two Gaussian levels. The last level is L[4] = G[4], the blurriest Gaussian level. Adding up all the Laplacian levels gives back the original image.
+</p>
+<pre><code>def gaussian_stack(image, levels, sigma):
+    g_stack = [image]
+    for level in range(1, levels):
+        new_sigma = level * sigma
+        g_stack.append(low_pass(image, new_sigma))
+    return g_stack
+
+def laplacian_stack(g_stack):
+    l_stack = []
+    for i, layer in enumerate(g_stack[:-1]):
+        l_stack.append(layer - g_stack[i+1])
+    l_stack.append(g_stack[-1])
+    return l_stack</code></pre>
+
+<div class="wide">
+  <img src="images/p23_apple_gaussian.jpg" alt="Apple Gaussian stack">
+  <div class="caption"><b>Apple, Gaussian stack, levels 0 to 4</b></div>
+</div>
+<div class="wide">
+  <img src="images/p23_apple_laplacian.jpg" alt="Apple Laplacian stack">
+  <div class="caption"><b>Apple, Laplacian stack, levels 0 to 4</b></div>
+</div>
+<div class="wide">
+  <img src="images/p23_orange_gaussian.jpg" alt="Orange Gaussian stack">
+  <div class="caption"><b>Orange, Gaussian stack, levels 0 to 4</b></div>
+</div>
+<div class="wide">
+  <img src="images/p23_orange_laplacian.jpg" alt="Orange Laplacian stack">
+  <div class="caption"><b>Orange, Laplacian stack, levels 0 to 4</b></div>
+</div>
+
+<h3>Recreation of Szeliski Figure 3.42</h3>
+
+<div class="wide">
+  <img src="images/p23_fig342.jpg" alt="Recreation of Szeliski Figure 3.42 with the apple and orange">
+  <div class="caption"><b>Columns: masked apple, masked orange, sum. Rows: Laplacian levels 0, 2, 4, then all levels summed.</b> Reading across each row gives (a)-(c), (d)-(f), (g)-(i), and (j)-(l) from Figure 3.42. Level 4 is the coarse residual. Detail rows are rescaled together for display.</div>
+</div>
+
+<h2>Part 2.4: Multiresolution Blending</h2>
+
+<p class="reflection">
+If you just cut two images in half and stick them together, you get a hard line. If you fade between them over a wide area, the fine details of both images overlap and look like a ghost. The fix is to blend each level of detail separately. Fine details should switch over a narrow area, and the broad colors should fade over a wide area.
+</p>
+<p class="reflection">
+So we build a Laplacian stack for each image and a Gaussian stack for the mask. The mask gets blurrier at each level, which makes the fade wider for the coarser levels. At each level we take mask times the first image plus (1 minus mask) times the second image. Then we add up all the levels to get the final image.
+</p>
+<p class="reflection">
+We tried mask sigmas from 1 to 8 and ended up choosing 8, as that most closely replicated the oraple in Figure 3.42. Smaller values still showed a line down the middle.
+</p>
+<pre><code>def blend(im_a, im_b, mask, levels, sigma, mask_sigma):
+    l_a = laplacian_stack(gaussian_stack(im_a, levels, sigma))
+    l_b = laplacian_stack(gaussian_stack(im_b, levels, sigma))
+    g_mask = gaussian_stack(mask, levels, mask_sigma)
+    l_blend = []
+    for i in range(levels):
+        l_blend.append(l_a[i] * g_mask[i] + l_b[i] * (1 - g_mask[i]))
+    return np.sum(l_blend, axis = 0), l_a, l_b, g_mask</code></pre>
+
+<h3>Oraple</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p24_apple.jpg" alt="Apple"><div class="caption"><b>Apple</b></div></td>
+    <td><img src="images/p24_orange.jpg" alt="Orange"><div class="caption"><b>Orange</b></div></td>
+    <td><img src="images/p24_oraple.jpg" alt="Oraple"><div class="caption"><b>Oraple, mask sigma 8</b></div></td>
+  </tr>
+</table>
+
+<h3>Custom blend 1 (straight seam)</h3>
+
+<div class="wide">
+  <img src="images/p24_blend1_mask.jpg" alt="Mask choosing the left image on the left half and the right image on the right half" style="max-width: 300px;">
+  <div class="caption"><b>Step mask</b></div>
+</div>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p24_blend1_a.jpg" alt="Snow scene used for the left half"><div class="caption"><b>Left image</b></div></td>
+    <td><img src="images/p24_blend1_b.jpg" alt="Snow scene used for the right half"><div class="caption"><b>Right image</b></div></td>
+    <td><img src="images/p24_blend1.jpg" alt="Blend of the two snow scenes"><div class="caption"><b>Blend</b></div></td>
+  </tr>
+</table>
+
+<p class="reflection">
+This is my favorite result. The two photos were taken on the same snowy road, so the colors and lighting already match. The seam is somewhat obvious in the road. But if you look outside the road area, the two scenes actually merge together pretty well.
+</p>
+
+<h3>Custom blend 2 (irregular mask)</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p24_blend2_a.jpg" alt="Tree at night"><div class="caption"><b>Tree at night</b></div></td>
+    <td><img src="images/p24_blend2_b.jpg" alt="Tree in daytime"><div class="caption"><b>Tree in daytime</b></div></td>
+    <td><img src="images/p24_blend2_mask.jpg" alt="Ellipse mask"><div class="caption"><b>Ellipse mask</b></div></td>
+    <td><img src="images/p24_blend2.jpg" alt="Blend of the two trees"><div class="caption"><b>Blend</b></div></td>
+  </tr>
+</table>
+
+<p class="reflection">
+The tree blend went pretty strangely. It was honestly a semi-failure. We tried to place the tree lit up at night into the daytime photo using an ellipse as the mask. The problem is that the two photos are too different. The night photo is very dark around the tree, so a dark rim shows up around the ellipse, and the two trees do not line up well. Blending works much better when the two images are already similar near the seam.
+</p>
+
+<h3>Laplacian stacks for my favorite result (custom blend 1)</h3>
+
+<p class="reflection">
+This is laid out like Figure 10 in the Burt and Adelson paper. The first three rows show levels 0, 2, and 4, from fine to coarse. The left column is the first image after the mask, the middle column is the second image after the mask, and the right column is the two added together. The last row adds up all the levels, which gives the final blend. You can see the fade between the two images get wider as the levels get coarser.
+</p>
+
+<div class="wide">
+  <img src="images/p24_blend1_stack.jpg" alt="Laplacian stack contributions for the snow blend">
+  <div class="caption"><b>Columns: masked left image, masked right image, sum. Rows: Laplacian levels 0, 2, 4, then all levels summed.</b></div>
+</div>
+
+<h3>Laplacian stacks for custom blend 2</h3>
+
+<div class="wide">
+  <img src="images/p24_blend2_stack.jpg" alt="Laplacian stack contributions for the tree blend">
+  <div class="caption"><b>Columns: masked night tree, masked day tree, sum. Rows: Laplacian levels 0, 2, 4, then all levels summed.</b></div>
+</div>
+
+<h2>What I Learned</h2>
+
+<p class="reflection">
+The most important thing I learned is that seemingly very simple ideas, such as splitting an image into Gaussian and Laplacian layers, can produce really powerful results. In a world where we are so focused on generating images with AI, it is honestly quite surprising that these traditional methods can still produce such funny and fascinating-looking things.
+</p>
+
+<p class="caption">References: <a href="https://cal-cs180.github.io/fa26/hw/proj2/index.html">Project 2 assignment</a>, <a href="https://www.cs.princeton.edu/courses/archive/fall05/cos429/papers/burt_adelson.pdf">Burt and Adelson (1983)</a>. Derek, Nutmeg, the cameraman, the Taj Mahal, the apple, the orange, and the alignment helper came from the course materials.</p>
+
+</body>
+</html>
