@@ -61,8 +61,7 @@
 We implemented two versions of convolution using only numpy. The first uses four for loops: two over the image pixels and two over the filter. The second uses two for loops: for each pixel we take the patch of the image under the filter, multiply it by the filter, and sum.
 </p>
 <p class="reflection">
-Both versions flip the filter first, since that is the difference between convolution and cross-correlation. Both also pad the image with zeros, by half the filter size on each side, so the output has the same size as the input. The box filter is a 9x9 array of ones divided by 81, so its weights add up to one.
-</p>
+Both versions flip the filter first and pad the image with zeros. We elected to use same instead of "full" for padding since that was just generally easier. The box filter is a 9x9 array of ones divided by 81.</p>
 
 <pre><code>def pad(image, pad_h, pad_w):
     h, w = image.shape
@@ -82,10 +81,10 @@ def convolve_4loop(image, filter):
             for f_h_idx in range(filter.shape[0]):
                 for f_w_idx in range(filter.shape[1]):
                     output[row_idx, column_idx] += filter[f_h_idx, f_w_idx] * padded_image[row_idx + f_h_idx, column_idx + f_w_idx]
-    return output
+    return output # this line took a long time to think about
 
 def convolve_2loop(image, filter):
-    filter = np.flip(filter)  # Ensure the filter is flipped.
+    filter = np.flip(filter)  
     pad_h, pad_w = filter.shape[0] // 2, filter.shape[1] // 2
     padded_image = pad(image, pad_h, pad_w)
     output = np.zeros(image.shape)
@@ -106,8 +105,7 @@ def convolve_2loop(image, filter):
   <tr><td>scipy.signal.convolve2d</td><td>0.0103 s</td><td>-</td></tr>
 </table>
 
-<p class="reflection">
-There is basically no difference from the SciPy output. The largest difference in any pixel is about 1e-15, which is just floating point error. However, SciPy is much faster. The two-loop version is about 12 times faster than the four-loop version, and SciPy is about 19 times faster than the two-loop version.
+<p class="reflection">We calculate that there is basically no difference from the SciPy output. However, SciPy is much faster. The two-loop version is about 12 times faster than the four-loop version, and SciPy is about 19 times faster than the two-loop version.
 </p>
 <p class="reflection">
 For the boundary, we fill with zeros, which is also what <code>scipy.signal.convolve2d</code> does by default with <code>mode="same"</code>. That is why the two outputs match. One side effect is that the box filter result gets a little darker right at the border, since it averages in the zeros.
@@ -140,15 +138,13 @@ box = np.ones((9, 9)) / 81</code></pre>
 </table>
 
 <p class="reflection">
-We convolved the cameraman with Dx and Dy to get the partial derivatives in x and y. The gradient magnitude at each pixel is the square root of (dx squared plus dy squared). It is large wherever the brightness changes quickly, which is where the edges are.
+We convolved the cameraman with Dx and Dy to get the partial derivatives in x and y. The gradient magnitude at each pixel is seen as np.sqrt(dx**2+dy**2). It is large wherever there is a sudden change brightness - implying the existence of an edge.
 </p>
 <p class="reflection">
-We tried thresholds from 0.1 to 0.33 and ultimately decided on 0.33. That is where the noise from the grass almost completely disappears, yet the outline of the person and the camera still more or less stays intact. Lower thresholds keep more of the edges but also keep a lot of the grass.
+We tried thresholds from 0.1 to 0.33 and ultimately decided on 0.33. This was where we deemed most of the grass noise to disappear while still maintaining the outline of the person and the camera. Lower thresholds keep more of the edges but also show too much noise.
 </p>
 
 <h2>Part 1.3: Derivative of Gaussian (DoG) Filter</h2>
-
-<h3>Blur, then finite difference</h3>
 
 <table class="row">
   <tr>
@@ -165,8 +161,8 @@ We tried thresholds from 0.1 to 0.33 and ultimately decided on 0.33. That is whe
 
 <table class="row">
   <tr>
-    <td><img src="images/p13_dog_x.jpg" alt="DoG x filter"><div class="caption"><b>DoG x filter</b></div></td>
-    <td><img src="images/p13_dog_y.jpg" alt="DoG y filter"><div class="caption"><b>DoG y filter</b></div></td>
+    <td><img src="images/p13_dog_x.jpg" alt="DoG x filter"><div class="caption"><b>DoG x filter</b><br>From Dx([1, 0, -1]), the grey glob represents zero, the white the most positive value, and black the most negative.&nbsp;</div></td>
+    <td><img src="images/p13_dog_y.jpg" alt="DoG y filter"><div class="caption"><b>DoG y filter</b><br>From Dy = [1, 0, -1] as a column (Dx.T)</div></td>
   </tr>
 </table>
 
@@ -180,17 +176,11 @@ We tried thresholds from 0.1 to 0.33 and ultimately decided on 0.33. That is whe
   </tr>
 </table>
 
-<p class="caption">Largest difference between the two gradient magnitudes (blur then difference versus one DoG convolution): 7.6e-16.</p>
-
+<p class="caption"><span style="color: rgb(34, 34, 34); font-size: 15px;">We created the Gaussian filter using </span><code style="color: rgb(34, 34, 34); font-size: 15px;">cv2.getGaussianKernel</code><span style="color: rgb(34, 34, 34); font-size: 15px;"> (size 9, sigma 1.5) and multiplied it by its transpose to get a 2D filter. We blurred the cameraman with it and then repeated Part 1.2.</span></p>
 <p class="reflection">
-We created the Gaussian filter using <code>cv2.getGaussianKernel</code> (size 9, sigma 1.5) and multiplying it by its transpose to get a 2D filter. We blurred the cameraman with it and then repeated Part 1.2.
-</p>
+There are two main differences. One, the result is obviously less noisy. Two, the edges are far clearer and more continuous. Blurring first averages out the noise from things like the grass. As a result, the finite difference operators only really respond to the important edges that we care about. The edges also come out thicker, since the blur spreads them over several pixels. This also lowers the gradient values, so a threshold of 0.1 was sufficient here.</p>
 <p class="reflection">
-There are two main differences. One, the result is far less noisy. Two, the edges are far clearer and more continuous. This is because taking a derivative amplifies small pixel-to-pixel noise, and blurring first removes that noise before we take the derivative. The edges also come out a bit thicker, since the blur spreads them out. Because the blurred gradients are weaker, we could use a lower threshold of 0.1.
-</p>
-<p class="reflection">
-The DoG filters do the same thing, but in one step. We convolve the Gaussian with Dx and Dy first, and then convolve the image once with each result. Convolution is associative, so we can group the filters this way. We found that the largest difference between the two gradient magnitudes is 7.6e-16 (rather small). So they match.
-</p>
+The DoG filters do the same thing, but in one step. We convolve the Gaussian with Dx and Dy first, and then convolve the image once with each result. Convolution is associative, so we can group the filters as such. We found that the largest difference between the two gradient magnitudes is 7.6e-16 (negligible).</p>
 <pre><code>kernel_part = cv.getGaussianKernel(ksize=9, sigma=1.5)
 G = kernel_part @ kernel_part.T
 
@@ -209,7 +199,7 @@ high = taj - taj_blur
 sharpened_taj = taj + alpha * high</code></pre>
 
 <p class="reflection">
-We can also do this in one convolution. The filter is (1 + alpha) times the identity filter minus alpha times the Gaussian. The identity filter just keeps the original pixel. This gives the same result as subtracting the blur and adding back the details.
+We can also do this in one convolution. The filter is (1 + alpha) times the identity filter minus alpha times the Gaussian. This gives the same result as subtracting the blur and adding back the details.
 </p>
 <pre><code>def unsharp_mask(image, alpha, gaussian):
     impulse = np.zeros_like(gaussian)
@@ -269,16 +259,15 @@ We can also do this in one convolution. The filter is (1 + alpha) times the iden
 </table>
 
 <p class="reflection">
-For the Taj, alpha around 1 to 2 looked the sharpest without distorting the image. Alpha values that were too high resulted in distorted-looking images with harsh edges and noise. For my own blurry image, I chose an alpha of 5 despite it not being perfect.
+For the Taj, alpha around 1 to 2 looked the sharpest without distorting the image. Alpha values that were too high resulted in distorted-looking images with harsh edges and noise. For my own blurry selfie image, I chose an alpha of 5.
 </p>
 <p class="reflection">
-For the last test we took a sharp image, blurred it, and sharpened it again. The re-sharpened image looks better than the blurred one, but it still does not match the original. The blur weakens the finest details, and sharpening can only boost the details that are still there. This unsharp mask does not undo the blur.
-</p>
+For the last test we took a sharp image, blurred it, and sharpened it again.&nbsp;It is clear that the image that is resharpened is not quite like the original. We conclude from here that details lost during blurring may not necessarily be recoverable.&nbsp;</p>
 
 <h2>Part 2.2: Hybrid Images</h2>
 
 <p class="reflection">
-For each hybrid, we keep the broad shapes from one image and the fine details from the other. A Gaussian keeps the low frequencies. Subtracting a Gaussian blur from an image gives its high frequencies. The sigmas below are in pixels. A larger sigma means a lower frequency cutoff.
+For each hybrid, we keep the broad shapes from one image and the fine details from the other. We can use Gaussian filter to keeps the low frequencies (the blurry version). If we subtract the Gaussian blur from an image, we get the high frequencies instead. The sigmas below are in pixels. A larger sigma means a lower frequency cutoff.
 </p>
 
 <h3>Hybrid 1: Derek + Nutmeg</h3>
@@ -315,14 +304,15 @@ For each hybrid, we keep the broad shapes from one image and the fine details fr
 </div>
 
 <p class="reflection">
-We first struggled with aligning Derek and Nutmeg. We used the provided alignment code and clicked on the eyes in both images, then cropped both to the same region. Once aligned, we low-pass filtered Derek and high-pass filtered Nutmeg (the image minus its blurred version), and added the two together.
+We first struggled with aligning Derek and Nutmeg. We used the provided alignment code and clicked on the eyes in both images, then cropped both to the same region. Once aligned, we low-pass filtered Derek and high-pass filtered Nutmeg, and added the two together.
 </p>
 <p class="reflection">
 To pick the cutoffs, we tried a grid of sigma values for both images and looked at each result up close and from far away. We picked sigma 10 for Derek and sigma 4 for Nutmeg. Up close you mostly see the cat, and from far away you mostly see Derek.
 </p>
 <pre><code>def low_pass(image, sigma):
     ksize = int(6 * sigma) | 1
-    return filter_color(image, gaussian_kernel(ksize, sigma))
+    g = cv.getGaussianKernel(ksize, sigma).ravel()
+    return cv.sepFilter2D(image, cv.CV_64F, g, g, borderType=cv.BORDER_REFLECT).reshape(image.shape)
 
 def high_pass(image, sigma):
     return image - low_pass(image, sigma)
@@ -330,7 +320,7 @@ def high_pass(image, sigma):
 def hybrid_image(im_low, im_high, sigma_low, sigma_high):
     return low_pass(im_low, sigma_low) + high_pass(im_high, sigma_high)</code></pre>
 
-<h3>Hybrid 2: selfie + Emma Watson drawing</h3>
+<h3>Hybrid 2: Selfie + Emma Watson drawing I took from Reddit</h3>
 
 <table class="row">
   <tr>
@@ -348,10 +338,10 @@ def hybrid_image(im_low, im_high, sigma_low, sigma_high):
 </table>
 
 <p class="reflection">
-One issue here is that the color schemes of the two images are quite different. The green background of the selfie stands out against the black and white drawing. The drawing also has weaker contrast, so its high frequencies are harder to see. We used sigma 12 for the selfie and sigma 4 for the drawing, and multiplied the high frequencies by 1.5 to make them more visible.
+One issue here is that the color schemes of the two images are quite different. It is slightly jarring to see a white and black image overlayed on a coloured one. The drawing also has weaker contrast, so its high frequencies are harder to see. We used sigma 12 for the selfie and sigma 4 for the drawing, and multiplied the high frequencies by 1.5 to make them more visible.
 </p>
 
-<h3>Hybrid 3: cruise (favorite, full process)</h3>
+<h3>Hybrid 3: Cruise</h3>
 
 <table class="row">
   <tr>
@@ -361,8 +351,7 @@ One issue here is that the color schemes of the two images are quite different. 
 </table>
 
 <p class="reflection">
-This one is my favorite because I really enjoyed this cruise that I went on. We aligned matching points on the faces using the provided code. We tried low-pass sigmas of 2, 3, 4, and 6, and high-pass sigmas of 1, 1.5, 2, and 3. We picked 4 and 2. The faces are smaller here than in the Derek and Nutmeg pair, so smaller sigmas worked better. The different head poses still make the switch less clear, even though I like the photos.
-</p>
+This one is my favorite because this was a great cruise that I got to go on! We aligned matching points on the faces using the provided code. We tried low-pass sigmas of 2, 3, 4, and 6, and high-pass sigmas of 1, 1.5, 2, and 3. We picked 4 and 2. Ultimately the different head poses has some effect on how the hybrid turned out.</p>
 
 <table class="row">
   <tr>
@@ -385,12 +374,9 @@ This one is my favorite because I really enjoyed this cruise that I went on. We 
   </tr>
 </table>
 
-<p class="reflection">
-These are the log magnitudes of the Fourier transforms, with the zero frequency moved to the center. The low-pass filter reduces the frequencies further from the center. The high-pass filter reduces the center and keeps more of the outer detail. The hybrid combines both. Each plot is rescaled for display, so the brightnesses are not directly comparable between plots.
+<p class="reflection">I chose this photo to illustrate the log magnitudes of the Fourier transforms. The centre of the image represents 0 frequency. The low-pass filter reduces the frequencies further from the center. The high-pass filter reduces the center and keeps more of the outer detail. The hybrid combines both. Each plot is rescaled for display, so the brightnesses are not directly comparable between plots.
 </p>
-<p class="reflection">
-There is also a cross pattern in the FFTs. These photos have a lot of horizontal and vertical features, such as the waterline and the buildings. Those features help create strong lines along the frequency axes. The image boundaries can contribute too. Photo 1 was rotated to get the alignment right, so some of its frequency lines are tilted as well. The hybrid combines both photos, so it has both tilted and straight lines, although the tilted ones are less obvious after filtering.
-</p>
+<p class="reflection">We can see that the FFT of photo 1 has some clear diagonal lines. This makes sense since the photo was rotated to align with photo 2. Photo 2, on the other hand, has much more standard vertical and horizontal lines. When combining the two together, we see in the FFT of the hybrid that there is a bit of both.&nbsp;</p>
 
 <div class="wide">
   <img src="images/p22_hybrid3.jpg" alt="Cruise hybrid image">
@@ -440,19 +426,18 @@ def laplacian_stack(g_stack):
 
 <div class="wide">
   <img src="images/p23_fig342.jpg" alt="Recreation of Szeliski Figure 3.42 with the apple and orange">
-  <div class="caption"><b>Columns: masked apple, masked orange, sum. Rows: Laplacian levels 0, 2, 4, then all levels summed.</b> Reading across each row gives (a)-(c), (d)-(f), (g)-(i), and (j)-(l) from Figure 3.42. Level 4 is the coarse residual. Detail rows are rescaled together for display.</div>
+  <div class="caption"><b>Columns: masked apple, masked orange, sum. Rows: Laplacian levels 0, 2, 4, oraple.</b></div>
 </div>
 
 <h2>Part 2.4: Multiresolution Blending</h2>
 
 <p class="reflection">
-If you just cut two images in half and stick them together, you get a hard line. If you fade between them over a wide area, the fine details of both images overlap and look like a ghost. The fix is to blend each level of detail separately. Fine details should switch over a narrow area, and the broad colors should fade over a wide area.
+If you just cut two images in half and stick them together, you get a hard line. If you fade between them over a wide area, the fine details of both images overlap. To fix this, we blend each level of detail separately. Fine details should switch over a narrow area, and the broad colors should fade over a wider area.
+</p>
+<p class="reflection">We build a Laplacian stack for each image and a Gaussian stack for the mask. The mask gets blurrier at each level, which makes the fade wider for the coarser levels as described above. At each level, we take (mask)(first image) + (1 - mask)(second image). Then we add up all the levels to get the final image.
 </p>
 <p class="reflection">
-So we build a Laplacian stack for each image and a Gaussian stack for the mask. The mask gets blurrier at each level, which makes the fade wider for the coarser levels. At each level we take mask times the first image plus (1 minus mask) times the second image. Then we add up all the levels to get the final image.
-</p>
-<p class="reflection">
-We tried mask sigmas from 1 to 8 and ended up choosing 8, as that most closely replicated the oraple in Figure 3.42. Smaller values still showed a line down the middle.
+We tried mask sigmas from 1 to 8 and ended up choosing 8, as this most closely replicated the oraple in Figure 3.42. Smaller values still showed a slight line down the middle.
 </p>
 <pre><code>def blend(im_a, im_b, mask, levels, sigma, mask_sigma):
     l_a = laplacian_stack(gaussian_stack(im_a, levels, sigma))
@@ -473,38 +458,61 @@ We tried mask sigmas from 1 to 8 and ended up choosing 8, as that most closely r
   </tr>
 </table>
 
-<h3>Custom blend 1 (straight seam)</h3>
-
-<div class="wide">
-  <img src="images/p24_blend1_mask.jpg" alt="Mask choosing the left image on the left half and the right image on the right half" style="max-width: 300px;">
-  <div class="caption"><b>Step mask</b></div>
-</div>
+<h3>Custom blend 1: cow head on me (irregular mask)</h3>
 
 <table class="row">
   <tr>
-    <td><img src="images/p24_blend1_a.jpg" alt="Snow scene used for the left half"><div class="caption"><b>Left image</b></div></td>
-    <td><img src="images/p24_blend1_b.jpg" alt="Snow scene used for the right half"><div class="caption"><b>Right image</b></div></td>
-    <td><img src="images/p24_blend1.jpg" alt="Blend of the two snow scenes"><div class="caption"><b>Blend</b></div></td>
+    <td><img src="images/p24_blend1_a.jpg" alt="Cow looking into the camera"><div class="caption"><b>Cow</b></div></td>
+    <td><img src="images/p24_blend1_b.jpg" alt="Selfie in the same field"><div class="caption"><b>Me</b></div></td>
+    <td><img src="images/p24_blend1_mask.jpg" alt="Clicked mask around the cow's head and ears"><div class="caption"><b>Head mask</b></div></td>
+    <td><img src="images/p24_blend1.jpg" alt="Cow head blended onto my body"><div class="caption"><b>Blend</b></div></td>
   </tr>
 </table>
 
 <p class="reflection">
-This is my favorite result. The two photos were taken on the same snowy road, so the colors and lighting already match. The seam is somewhat obvious in the road. But if you look outside the road area, the two scenes actually merge together pretty well.
+This is my favorite result. Both photos were taken from the same spot, so the background already lines up! This was, I believe at some hiking trial around San Jose.</p>
+<p class="reflection">
+To make the mask, I clicked an outline around the cow's head and ears with plt.ginput. Then cv.fillPoly fills in the outline. You can still slightly see my hair and other features of my face, which may have more been a result of my inability to make a better head mask.</p>
+<pre><code>def click_polygon(image, out_path):
+    h, w = image.shape[:2]
+    plt.imshow(image)
+    points = np.array(plt.ginput(n=-1, timeout=0))
+    np.save(out_path, points / [w, h])
+
+head = (np.load(DATA / "aligned" / "cow_head.npy") * [w, h]).astype(np.int32)
+cow_mask = np.zeros([h, w], np.float32)
+cv.fillPoly(cow_mask, [head], 1)</code></pre>
+<p class="reflection">
+It took a few tries honestly. At first my face showed right through the cow's forehead. I also had to make the outline bigger than the cow's head so it covers my ear.</p>
+<p class="reflection">
+I used 6 levels, an image sigma of 3, and a mask sigma of 4.</p>
+
+<h3>Custom blend 2: red and purple sunsets (irregular mask)</h3>
+
+<table class="row">
+  <tr>
+    <td><img src="images/p24_blend2_a.jpg" alt="Sunset with a red and orange sky"><div class="caption"><b>Red sky</b></div></td>
+    <td><img src="images/p24_blend2_b.jpg" alt="Sunset with a purple sky, aligned to the red photo"><div class="caption"><b>Purple sky (aligned)</b></div></td>
+    <td><img src="images/p24_blend2_mask.jpg" alt="Mask following the dark tree and palm silhouettes"><div class="caption"><b>Skyline mask</b></div></td>
+    <td><img src="images/p24_blend2.jpg" alt="Blend with a purple upper sky and red glow around the trees"><div class="caption"><b>Blend</b></div></td>
+  </tr>
+</table>
+
+<p class="reflection">This was from Singapore! These two photos show the same tree on two different sunsets. I matched points between them with SIFT. Then I found the scale, rotation, and shift that moves the purple photo onto the red one, and cropped both to the area they share.
 </p>
-
-<h3>Custom blend 2 (irregular mask)</h3>
-
-<table class="row">
-  <tr>
-    <td><img src="images/p24_blend2_a.jpg" alt="Tree at night"><div class="caption"><b>Tree at night</b></div></td>
-    <td><img src="images/p24_blend2_b.jpg" alt="Tree in daytime"><div class="caption"><b>Tree in daytime</b></div></td>
-    <td><img src="images/p24_blend2_mask.jpg" alt="Ellipse mask"><div class="caption"><b>Ellipse mask</b></div></td>
-    <td><img src="images/p24_blend2.jpg" alt="Blend of the two trees"><div class="caption"><b>Blend</b></div></td>
-  </tr>
-</table>
-
+<pre><code>for best, second in cv.BFMatcher().knnMatch(desc_moving, desc_fixed, k=2):
+    if best.distance &lt; 0.75 * second.distance:
+        points_moving.append(keys_moving[best.queryIdx].pt)
+        points_fixed.append(keys_fixed[best.trainIdx].pt)
+M, inliers = cv.estimateAffinePartial2D(np.float32(points_moving), np.float32(points_fixed), method=cv.RANSAC, ransacReprojThreshold=3)</code></pre>
 <p class="reflection">
-The tree blend went pretty strangely. It was honestly a semi-failure. We tried to place the tree lit up at night into the daytime photo using an ellipse as the mask. The problem is that the two photos are too different. The night photo is very dark around the tree, so a dark rim shows up around the ellipse, and the two trees do not line up well. Blending works much better when the two images are already similar near the seam.
+For the mask, I took every dark pixel (trees, palms, road) and grew it outward by 30 pixels. Inside the mask comes from the red photo. The open sky comes from the purple photo.
+</p>
+<pre><code>darker = np.minimum(sunset_red, sunset_purple).mean(axis = -1)
+dark = (low_pass(darker, 2) &lt; 0.25).astype(np.uint8)
+circle = cv.getStructuringElement(cv.MORPH_ELLIPSE, (61, 61))
+sky_mask = cv.dilate(dark, circle).astype(np.float32)</code></pre>
+<p class="reflection">The palms are closer to the camera than the big tree, so they shift between the two photos even after aligning. Experiment with a thinner mask caused a faint double image of the palms. Growing the mask makes each palm come from only one photo. The result keeps the orange glow behind the tree and fades into the purple sky above.
 </p>
 
 <h3>Laplacian stacks for my favorite result (custom blend 1)</h3>
@@ -514,24 +522,21 @@ This is laid out like Figure 10 in the Burt and Adelson paper. The first three r
 </p>
 
 <div class="wide">
-  <img src="images/p24_blend1_stack.jpg" alt="Laplacian stack contributions for the snow blend">
-  <div class="caption"><b>Columns: masked left image, masked right image, sum. Rows: Laplacian levels 0, 2, 4, then all levels summed.</b></div>
+  <img src="images/p24_blend1_stack.jpg" alt="Laplacian stack contributions for the cow and me blend">
+  <div class="caption"><b>Columns: masked cow, masked me, sum. Rows: Laplacian levels 0, 2, 4, sum.</b></div>
 </div>
 
 <h3>Laplacian stacks for custom blend 2</h3>
 
 <div class="wide">
-  <img src="images/p24_blend2_stack.jpg" alt="Laplacian stack contributions for the tree blend">
-  <div class="caption"><b>Columns: masked night tree, masked day tree, sum. Rows: Laplacian levels 0, 2, 4, then all levels summed.</b></div>
+  <img src="images/p24_blend2_stack.jpg" alt="Laplacian stack contributions for the sunset blend">
+  <div class="caption"><b>Columns: masked red sky, masked purple sky, sum. Rows: Laplacian levels 0, 2, 4, sum.</b></div>
 </div>
 
 <h2>What I Learned</h2>
 
 <p class="reflection">
-The most important thing I learned is that seemingly very simple ideas, such as splitting an image into Gaussian and Laplacian layers, can produce really powerful results. In a world where we are so focused on generating images with AI, it is honestly quite surprising that these traditional methods can still produce such funny and fascinating-looking things.
-</p>
-
-<p class="caption">References: <a href="https://cal-cs180.github.io/fa26/hw/proj2/index.html">Project 2 assignment</a>, <a href="https://www.cs.princeton.edu/courses/archive/fall05/cos429/papers/burt_adelson.pdf">Burt and Adelson (1983)</a>. Derek, Nutmeg, the cameraman, the Taj Mahal, the apple, the orange, and the alignment helper came from the course materials.</p>
+The most important thing I learned is that seemingly very simple ideas, such as splitting an image into Gaussian and Laplacian layers, can produce really powerful results. In a world where we are so focused on generating images with AI, it is honestly quite surprising that these traditional methods can still produce such funny and fascinating-looking things.</p>
 
 </body>
 </html>
