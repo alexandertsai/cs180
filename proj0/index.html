@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS180 Project 0: Becoming Friends with Your Camera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 15px;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px 60px 20px;
+    line-height: 1.7;
+    color: #222;
+    background: #fff;
+  }
+  h1 { font-size: 1.5em; margin-bottom: 4px; }
+  h2 { font-size: 1.15em; border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-top: 44px; }
+  .byline { color: #666; margin-top: 0; }
+  table.pair { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  table.pair td { width: 50%; vertical-align: top; padding: 6px; text-align: center; }
+  img { max-width: 100%; height: auto; border: 1px solid #ddd; }
+  .caption { font-size: 0.85em; color: #555; margin-top: 6px; }
+  .caption b { color: #222; }
+  table.frames { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  table.frames td { width: 20%; padding: 4px; text-align: center; font-size: 0.75em; color: #666; }
+  .gif { text-align: center; margin-top: 16px; }
+  .reflection { margin-top: 18px; }
+</style>
+</head>
+<body>
+
+<h1>Project 0: Becoming Friends with Your Camera</h1>
+<p class="byline">Alexander Tsai</p>
+
+<h2>Part 1</h2>
+
+<table class="pair">
+  <tr>
+    <td>
+      <img src="images/face_zoom.jpg" alt="Close-up selfie at 24mm">
+      <div class="caption"><b>Close, no zoom, 24&nbsp;mm</b></div>
+    </td>
+    <td>
+      <img src="images/face_unzoom.jpg" alt="Selfie from a distance at 227mm">
+      <div class="caption"><b>Far, zoomed in, 227&nbsp;mm</b></div>
+    </td>
+  </tr>
+</table>
+
+<p class="reflection">
+My hypothesis is that when the camera is much closer, features that differ in their distance from the
+camera, such as the nose versus the cheek, become much more distorted. As the camera moves further
+away, that difference matters much less, since the nose being slightly closer than the cheek is small
+compared to the overall distance. The result is much less distortion around the face.
+</p>
+
+<h2>Part 2</h2>
+
+<table class="pair">
+  <tr>
+    <td>
+      <img src="images/building_zoom.jpg" alt="Building shot from far away with zoom">
+      <div class="caption"><b>Far, zoomed in, 53&nbsp;mm</b></div>
+    </td>
+    <td>
+      <img src="images/building_unzoom.jpg" alt="Building shot up close without zoom">
+      <div class="caption"><b>Close, no zoom, 19&nbsp;mm</b></div>
+    </td>
+  </tr>
+</table>
+
+<p class="reflection">
+The building looks flattened in the first picture because from far away we can capture the whole
+building at once. When we get closer, we are still trying to maintain the same field of view, but we no
+longer have enough distance to do it, so the building ends up looking slightly warped or curvy.
+</p>
+
+<h2>Part 3</h2>
+
+<div class="gif">
+  <img src="images/dollyzoom.gif" alt="Dolly zoom animated GIF">
+  <div class="caption"><b>Dolly zoom, 10 frames, 24&nbsp;mm to 184&nbsp;mm</b></div>
+</div>
+
+<table class="frames">
+  <tr>
+    <td><a href="images/dolly1.jpg"><img src="images/thumbs/dolly1.jpg" alt="Frame 1"></a><br>1 (24 mm)</td>
+    <td><a href="images/dolly2.jpg"><img src="images/thumbs/dolly2.jpg" alt="Frame 2"></a><br>2</td>
+    <td><a href="images/dolly3.jpg"><img src="images/thumbs/dolly3.jpg" alt="Frame 3"></a><br>3 (51 mm)</td>
+    <td><a href="images/dolly4.jpg"><img src="images/thumbs/dolly4.jpg" alt="Frame 4"></a><br>4</td>
+    <td><a href="images/dolly5.jpg"><img src="images/thumbs/dolly5.jpg" alt="Frame 5"></a><br>5</td>
+  </tr>
+  <tr>
+    <td><a href="images/dolly6.jpg"><img src="images/thumbs/dolly6.jpg" alt="Frame 6"></a><br>6 (108 mm)</td>
+    <td><a href="images/dolly7.jpg"><img src="images/thumbs/dolly7.jpg" alt="Frame 7"></a><br>7</td>
+    <td><a href="images/dolly8.jpg"><img src="images/thumbs/dolly8.jpg" alt="Frame 8"></a><br>8</td>
+    <td><a href="images/dolly9.jpg"><img src="images/thumbs/dolly9.jpg" alt="Frame 9"></a><br>9</td>
+    <td><a href="images/dolly10.jpg"><img src="images/thumbs/dolly10.jpg" alt="Frame 10"></a><br>10 (184 mm)</td>
+  </tr>
+</table>
+
+<p class="reflection">
+Every frame backs the camera up a little and zooms in to keep that little monument the same
+size. Thus, the effect from Part 1 is repeated many times.
+</p>
+
+</body>
+</html>
