@@ -1,0 +1,43 @@
+
+  body {
+    font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 15px;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px 60px 20px;
+    line-height: 1.7;
+    color: #222;
+    background: #fff;
+  }
+  h1 { font-size: 1.5em; margin-bottom: 4px; }
+  h2 { font-size: 1.15em; border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-top: 44px; }
+  h3 { font-size: 1em; margin-top: 28px; }
+  .byline { color: #666; margin-top: 0; }
+  table.row { width: 100%; border-collapse: collapse; margin-top: 16px; table-layout: fixed; }
+  table.row td { vertical-align: top; padding: 6px; text-align: center; }
+  img { max-width: 100%; height: auto; border: 1px solid #ddd; }
+  .caption { font-size: 0.85em; color: #555; margin-top: 6px; }
+  .caption b { color: #222; }
+  .wide { text-align: center; margin-top: 16px; }
+  .reflection { margin-top: 18px; }
+  pre { background: #f6f6f6; border: 1px solid #ddd; padding: 12px; overflow-x: auto; font-size: 0.8em; line-height: 1.5; }
+  pre code { font-family: inherit; }
+  @media (max-width: 600px) {
+    body { font-size: 13px; padding: 20px 14px; }
+    table.row:not(.timings), table.row:not(.timings) tbody { display: block; }
+    table.row:not(.timings) tr { display: flex; flex-wrap: wrap; }
+    table.row:not(.timings) td { box-sizing: border-box; width: 50%; }
+    table.timings { font-size: 11px; }
+  }
+  @media print {
+    body { max-width: none; padding: 0; font-size: 12px; line-height: 1.55; }
+    h2 { margin-top: 24px; }
+    h1, h2, h3 { break-after: avoid; }
+    table.row tr, .wide, pre { break-inside: avoid; }
+    table.row img { max-height: 65mm; width: auto; }
+    .wide img { max-height: 185mm; width: auto; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 9px; }
+    .caption { font-size: 8px; }
+  }
+
+.gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:20px 0}figure{margin:0;min-width:0}figcaption{font-size:.85em;color:#555;margin-top:6px;text-align:center}.wide{margin:20px 0}.pending,.questions{border:1px solid #ddd;background:#fafafa;padding:12px;margin:16px 0}.pending{font-size:.85em;color:#666}a{color:#315674}code{font-family:inherit}@media(max-width:600px){.gallery{grid-template-columns:1fr}}@media print{figure,.questions{break-inside:avoid}.wide img{max-height:170mm}.draft-note{color:#555}}
