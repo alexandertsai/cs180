@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1" name="viewport">
+<title>CS180 Project 4: Image Warping and Mosaicing</title>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 15px;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px 60px 20px;
+    line-height: 1.7;
+    color: #222;
+    background: #fff;
+  }
+  h1 { font-size: 1.5em; margin-bottom: 4px; }
+  h2 { font-size: 1.15em; border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-top: 44px; }
+  h3 { font-size: 1em; margin-top: 28px; }
+  .byline { color: #666; margin-top: 0; }
+  table.row { width: 100%; border-collapse: collapse; margin-top: 16px; table-layout: fixed; }
+  table.row td { vertical-align: top; padding: 6px; text-align: center; }
+  img { max-width: 100%; height: auto; border: 1px solid #ddd; }
+  .caption { font-size: 0.85em; color: #555; margin-top: 6px; }
+  .caption b { color: #222; }
+  .wide { text-align: center; margin-top: 16px; }
+  .reflection { margin-top: 18px; }
+  pre { background: #f6f6f6; border: 1px solid #ddd; padding: 12px; overflow-x: auto; font-size: 0.8em; line-height: 1.5; }
+  pre code { font-family: inherit; }
+  @media (max-width: 600px) {
+    body { font-size: 13px; padding: 20px 14px; }
+    table.row:not(.timings), table.row:not(.timings) tbody { display: block; }
+    table.row:not(.timings) tr { display: flex; flex-wrap: wrap; }
+    table.row:not(.timings) td { box-sizing: border-box; width: 50%; }
+    table.timings { font-size: 11px; }
+  }
+  @media print {
+    body { max-width: none; padding: 0; font-size: 12px; line-height: 1.55; }
+    h2 { margin-top: 24px; }
+    h1, h2, h3 { break-after: avoid; }
+    table.row tr, .wide, pre { break-inside: avoid; }
+    table.row img { max-height: 65mm; width: auto; }
+    .wide img { max-height: 185mm; width: auto; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 9px; }
+    .caption { font-size: 8px; }
+  }
+
+    figure { margin: 0; min-width: 0; }
+    figure a { display: block; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin: 18px 0; align-items: start; }
+    .grid img { display: block; width: 100%; box-sizing: border-box; }
+    figcaption { font-size: .82em; color: #555; margin-top: 6px; line-height: 1.5; }
+    .wide { margin: 18px 0; }
+    .wide img { max-height: none; }
+    .wide figcaption { text-align: left; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 24px 0; font-size: .88em; }
+    a { color: #333; text-underline-offset: 3px; }
+    details { margin: 22px 0; }
+    summary { cursor: pointer; font-size: .92em; }
+    .metrics { width: 100%; border-collapse: collapse; font-size: .8em; margin: 16px 0; }
+    .metrics th, .metrics td { border-bottom: 1px solid #ddd; padding: 8px; text-align: left; }
+    .scroll { overflow-x: auto; }
+    .metadata { font-size: .8em; color: #666; }
+    [data-editable] { min-height: 1.7em; }
+    @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 1.35em; } }
+    @media print { details { break-inside: auto; } .grid figure { break-inside: avoid; } nav { display: none; } }
+    
+.math-equation { margin: 22px 0; padding: 6px 0; overflow-x: auto; }
+.math-equation math { font-size: 1.12em; min-width: max-content; }
+@media (max-width: 600px) { .math-equation math { font-size: .95em; } }
+@media print { .wide img { max-height: 165mm; width: auto; max-width: 100%; } .wide { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<h1 data-editable="true" id="editable-1">Project 4: Image Warping and Mosaicing</h1>
+<p class="byline" data-editable="true" id="byline">Alexander Tsai</p>
+<nav><a data-editable="true" href="#a1" id="editable-2">A.1 Photos</a><a data-editable="true" href="#a2" id="editable-3">A.2 Homographies</a><a data-editable="true" href="#a3" id="editable-4">A.3 Rectification</a><a data-editable="true" href="#a4" id="editable-5">A.4 Mosaics</a><a href="#b1">B.1 Corners</a><a href="#b2">B.2 Descriptors</a><a href="#b3">B.3 Matching</a><a href="#b4">B.4 Mosaics</a></nav>
+<h2 data-editable="true" id="a1">A.1: Shoot the Pictures</h2>
+<p class="reflection" data-editable="true" id="capture-answer">I captured each sequence by staying relatively still and rotating from left to right, using the iPhone camera grid to keep the views roughly aligned. I tried to avoid moving subjects and kept exposure locked to reduce brightness differences between shots. One thing I didn't do well was keep the camera lens in exactly the same position; I rotated my torso instead. This can introduce parallax error where nearby objects shift relative to distant surfaces, so a single homography may not align both perfectly (this will be seen later!). Moving subjects can also produce ghosting.</p>
+<h3 data-editable="true" id="mosaic1-sources">Berkeley Way West</h3>
+<div class="grid">
+<figure class=""><a href="images/lobby_left.jpg"><img alt="Berkeley Way West left" loading="lazy" src="images/lobby_left.jpg"></a><figcaption data-editable="true" id="editable-6">Berkeley Way West left</figcaption></figure>
+<figure class=""><a href="images/lobby_center.jpg"><img alt="Berkeley Way West center" loading="lazy" src="images/lobby_center.jpg"></a><figcaption data-editable="true" id="editable-7">Berkeley Way West center</figcaption></figure>
+<figure class=""><a href="images/lobby_right.jpg"><img alt="Berkeley Way West right" loading="lazy" src="images/lobby_right.jpg"></a><figcaption data-editable="true" id="editable-8">Berkeley Way West right</figcaption></figure>
+</div>
+<h3 data-editable="true" id="mosaic2-sources">Innovative Genomics Institute</h3>
+<div class="grid">
+<figure class=""><a href="images/campus_left.jpg"><img alt="Innovative Genomics Institute left" loading="lazy" src="images/campus_left.jpg"></a><figcaption data-editable="true" id="editable-9">Innovative Genomics Institute left</figcaption></figure>
+<figure class=""><a href="images/campus_center.jpg"><img alt="Innovative Genomics Institute center" loading="lazy" src="images/campus_center.jpg"></a><figcaption data-editable="true" id="editable-10">Innovative Genomics Institute center</figcaption></figure>
+<figure class=""><a href="images/campus_right.jpg"><img alt="Innovative Genomics Institute right" loading="lazy" src="images/campus_right.jpg"></a><figcaption data-editable="true" id="editable-11">Innovative Genomics Institute right</figcaption></figure>
+</div>
+<h3 data-editable="true" id="mosaic3-sources">Newspaper display</h3>
+<div class="grid">
+<figure class=""><a href="images/newspapers_left.jpg"><img alt="Newspapers left" loading="lazy" src="images/newspapers_left.jpg"></a><figcaption data-editable="true" id="editable-12">Newspapers left</figcaption></figure>
+<figure class=""><a href="images/newspapers_center.jpg"><img alt="Newspapers center" loading="lazy" src="images/newspapers_center.jpg"></a><figcaption data-editable="true" id="editable-13">Newspapers center</figcaption></figure>
+<figure class=""><a href="images/newspapers_right.jpg"><img alt="Newspapers right" loading="lazy" src="images/newspapers_right.jpg"></a><figcaption data-editable="true" id="editable-14">Newspapers right</figcaption></figure>
+</div>
+<p class="reflection" data-editable="true" id="capture-overlap">Distinctive details such as the poles in the overlapping regions made it easier to find matching locations. These scenes contain objects at varying depths, as illustrated by furniture and the more distant walls.&nbsp;</p>
+<h2 data-editable="true" id="a2">A.2: Recover Homographies</h2>
+<p class="reflection" data-editable="true" id="homography-model">The homography is a powerful tool to transform images. We define it as a 3 × 3 matrix that maps homogeneous image coordinates between views. The nine entries have eight degrees of freedom: multiplying every entry by the same nonzero constant scales all three output coordinates equally, and dividing by the third coordinate cancels that constant. We fix the bottom-right entry to 1 to remove this scale ambiguity. The extra terms g and h allow perspective effects, meaning that parallel lines need not remain parallel (unlike affine transformations). For this matrix, c and f provide translation terms before division.</p>
+<p class="reflection" data-editable="true" id="homography-system">To understand how we solve our system of equations, we first observe that each matching pair (x, y) → (u, v) contributes two equations. We multiply by the common denominator, collect the coefficients of a to h, and organise the equations into matrices. A contains those known coefficients, the vector h contains our eight unknown entries of H, and b contains the corresponding destination coordinates u and v.</p>
+<div class="math-equation"><math aria-label="Homography coordinate equations" display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mrow><mi>u</mi><mo>=</mo><mfrac><mrow><mi>a</mi><mi>x</mi><mo>+</mo><mi>b</mi><mi>y</mi><mo>+</mo><mi>c</mi></mrow><mrow><mi>g</mi><mi>x</mi><mo>+</mo><mi>h</mi><mi>y</mi><mo>+</mo><mn>1</mn></mrow></mfrac></mrow><mspace width="2em"></mspace><mrow><mi>v</mi><mo>=</mo><mfrac><mrow><mi>d</mi><mi>x</mi><mo>+</mo><mi>e</mi><mi>y</mi><mo>+</mo><mi>f</mi></mrow><mrow><mi>g</mi><mi>x</mi><mo>+</mo><mi>h</mi><mi>y</mi><mo>+</mo><mn>1</mn></mrow></mfrac></mrow></mrow></math></div>
+<div class="math-equation"><math aria-label="Two linear equations contributed by each matching point pair" display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mrow><mo stretchy="true">[</mo><mtable><mtr><mtd><mi>x</mi></mtd><mtd><mi>y</mi></mtd><mtd><mn>1</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mrow><mo>−</mo><mi>x</mi><mi>u</mi></mrow></mtd><mtd><mrow><mo>−</mo><mi>y</mi><mi>u</mi></mrow></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mi>x</mi></mtd><mtd><mi>y</mi></mtd><mtd><mn>1</mn></mtd><mtd><mrow><mo>−</mo><mi>x</mi><mi>v</mi></mrow></mtd><mtd><mrow><mo>−</mo><mi>y</mi><mi>v</mi></mrow></mtd></mtr></mtable><mo stretchy="true">]</mo></mrow><mrow><mo stretchy="true">[</mo><mtable><mtr><mtd><mi>a</mi></mtd></mtr><mtr><mtd><mi>b</mi></mtd></mtr><mtr><mtd><mi>c</mi></mtd></mtr><mtr><mtd><mi>d</mi></mtd></mtr><mtr><mtd><mi>e</mi></mtd></mtr><mtr><mtd><mi>f</mi></mtd></mtr><mtr><mtd><mi>g</mi></mtd></mtr><mtr><mtd><mi>h</mi></mtd></mtr></mtable><mo stretchy="true">]</mo></mrow><mo>=</mo><mrow><mo stretchy="true">[</mo><mtable><mtr><mtd><mi>u</mi></mtd></mtr><mtr><mtd><mi>v</mi></mtd></mtr></mtable><mo stretchy="true">]</mo></mrow></mrow></math></div>
+<p class="reflection" data-editable="true" id="homography-system-stack"><br></p>
+<div class="math-equation"><math aria-label="Stacked linear system A h equals b" display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>A</mi><mi mathvariant="bold">h</mi><mo>=</mo><mi mathvariant="bold">b</mi></mrow></math></div>
+<p class="reflection" data-editable="true" id="homography-solve">Four point pairs provide the minimum eight equations, but a fit based on only four pairs is sensitive to small coordinate errors. I use additional pairs and solve the overdetermined system with least squares, minimizing the sum of squared residuals in the linear equations. Before solving, I center and scale both point sets so their mean distance from the origin is √2. This improves numerical conditioning. I then transform the solution back to the original image coordinates.</p>
+<p class="metadata" data-editable="true" id="editable-15"><br></p>
+<details open=""><summary data-editable="true" id="editable-16">Berkeley Way West left → Berkeley Way West center</summary>
+<figure class="wide"><a href="images/lobby_left_matches.jpg"><img alt="Numbered corresponding points: source at left, reference at right" loading="lazy" src="images/lobby_left_matches.jpg"></a><figcaption data-editable="true" id="editable-17"><br></figcaption></figure>
+<pre data-editable="true" id="editable-18"><code>H = [[ 1.885174e+00 -6.990150e-02 -1.026187e+03]
+ [ 3.302970e-01  1.555339e+00 -3.303758e+02]
+ [ 5.448267e-04  5.263633e-06  1.000000e+00]]</code></pre>
+<p class="metadata" data-editable="true" id="editable-19">A: 32 × 8 · pairs: 16 · fit RMSE: 4.628 px · maximum fit error: 7.833 px</p>
+</details>
+<details open=""><summary data-editable="true" id="editable-20">Berkeley Way West right → Berkeley Way West center</summary>
+<figure class="wide"><a href="images/lobby_right_matches.jpg"><img alt="Numbered corresponding points: source at left, reference at right" loading="lazy" src="images/lobby_right_matches.jpg"></a><figcaption data-editable="true" id="editable-21"><br></figcaption></figure>
+<pre data-editable="true" id="editable-22"><code>H = [[ 4.920966e-01  8.288213e-02  5.595357e+02]
+ [-2.393381e-01  9.367708e-01  1.146965e+02]
+ [-3.735114e-04  1.073982e-04  1.000000e+00]]</code></pre>
+<p class="metadata" data-editable="true" id="editable-23">A: 16 × 8 · pairs: 8 · fit RMSE: 5.423 px · maximum fit error: 8.466 px</p>
+</details>
+<details open=""><summary data-editable="true" id="editable-24">Innovative Genomics Institute left → Innovative Genomics Institute center</summary>
+<figure class="wide"><a href="images/campus_left_matches.jpg"><img alt="Numbered corresponding points: source at left, reference at right" loading="lazy" src="images/campus_left_matches.jpg"></a><figcaption data-editable="true" id="editable-25"><br></figcaption></figure>
+<pre data-editable="true" id="editable-26"><code>H = [[ 1.557430e+00 -5.696739e-01 -8.312326e+02]
+ [ 6.441643e-01  9.618107e-01 -4.732978e+02]
+ [ 5.660605e-04 -4.063612e-04  1.000000e+00]]</code></pre>
+<p class="metadata" data-editable="true" id="editable-27">A: 12 × 8 · pairs: 6 · fit RMSE: 1.541 px · maximum fit error: 1.891 px</p>
+</details>
+<details open=""><summary data-editable="true" id="editable-28">Innovative Genomics Institute right → Innovative Genomics Institute center</summary>
+<figure class="wide"><a href="images/campus_right_matches.jpg"><img alt="Numbered corresponding points: source at left, reference at right" loading="lazy" src="images/campus_right_matches.jpg"></a><figcaption data-editable="true" id="editable-29"><br></figcaption></figure>
+<pre data-editable="true" id="editable-30"><code>H = [[ 2.126984e-01 -2.127474e-01  7.342319e+02]
+ [-3.788500e-01  3.982066e-01  3.766497e+02]
+ [-4.017642e-04 -2.134108e-04  1.000000e+00]]</code></pre>
+<p class="metadata" data-editable="true" id="editable-31">A: 16 × 8 · pairs: 8 · fit RMSE: 2.146 px · maximum fit error: 3.350 px</p>
+</details>
+<details open=""><summary data-editable="true" id="editable-32">newspapers_left → newspapers_center</summary>
+<figure class="wide"><a href="images/newspapers_left_matches.jpg"><img alt="Numbered corresponding points: source at left, reference at right" loading="lazy" src="images/newspapers_left_matches.jpg"></a><figcaption data-editable="true" id="editable-33">Numbered corresponding points: source at left, reference at right</figcaption></figure>
+<pre data-editable="true" id="editable-34"><code>H = [[ 2.071695e+00 -5.715453e-03 -1.243989e+03]
+ [ 4.068899e-01  1.727466e+00 -4.251065e+02]
+ [ 6.616291e-04  2.686587e-05  1.000000e+00]]</code></pre>
+<p class="metadata" data-editable="true" id="editable-35">A: 20 × 8 · pairs: 10 · fit RMSE: 3.151 px · maximum fit error: 4.704 px</p>
+</details>
+<details open=""><summary data-editable="true" id="editable-36">newspapers_right → newspapers_center</summary>
+<figure class="wide"><a href="images/newspapers_right_matches.jpg"><img alt="Numbered corresponding points: source at left, reference at right" loading="lazy" src="images/newspapers_right_matches.jpg"></a><figcaption data-editable="true" id="editable-37">Numbered corresponding points: source at left, reference at right</figcaption></figure>
+<pre data-editable="true" id="editable-38"><code>H = [[ 6.293697e-01 -7.625232e-03  4.278723e+02]
+ [-1.267020e-01  8.487878e-01  8.775916e+01]
+ [-2.201120e-04 -4.288672e-06  1.000000e+00]]</code></pre>
+<p class="metadata" data-editable="true" id="editable-39">A: 24 × 8 · pairs: 12 · fit RMSE: 2.693 px · maximum fit error: 4.177 px</p>
+</details>
+<p class="reflection" data-editable="true" id="homography-evidence">The reported RMSE measures the distance between transformed source points and their matched reference points. The six fits have RMSE values between 1.541 and 5.423 pixels. A lower RMSE indicates a closer fit to the selected correspondences. Part A uses saved point correspondences selected by inspecting the images; Part B detects and matches features automatically.</p>
+<h2 data-editable="true" id="a3">A.3: Warp and Rectify Images</h2>
+<p class="reflection" data-editable="true" id="warp-geometry">Here, we use inverse warping. For each destination pixel, we apply an inverse homography, divide by the resulting third coordinate, and sample the source image. This mitigates the issue of holes: forward mapping can cause source pixels to land between the aforementioned destination pixels and leave holes. If a destination pixel maps outside the source image, I simply mark that destination pixel invalid. To determine the output canvas, we transform the four source corners with H, taking the minimum and maximum x and y coordinates to determine the top left and top right and bottom left and bottom right limits. If the bounds include negative coordinates, I translate the canvas just enough for everything to be non-negative.</p>
+<p class="reflection" data-editable="true" id="interpolation-method">Next, after knowing where the pixels are, we need to know what colors they should be! The homography gives us a source location (x, y), which may fall between pixels. Let I(x, y) denote a source pixel’s color. We can define the upper-left integer neighbor and the fractional distances from it (how far our mapped source location is from that upper-left neighbor) as:</p>
+<div class="math-equation"><math aria-label="Integer neighbors and fractional source coordinates" display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mtable columnalign="right center left"><mtr><mtd><msub><mi>x</mi><mn>0</mn></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mo>⌊</mo><mi>x</mi><mo>⌋</mo></mrow></mtd></mtr><mtr><mtd><msub><mi>y</mi><mn>0</mn></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mo>⌊</mo><mi>y</mi><mo>⌋</mo></mrow></mtd></mtr><mtr><mtd><msub><mi>d</mi><mi>x</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>x</mi><mo>−</mo><msub><mi>x</mi><mn>0</mn></msub></mrow></mtd></mtr><mtr><mtd><msub><mi>d</mi><mi>y</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>y</mi><mo>−</mo><msub><mi>y</mi><mn>0</mn></msub></mrow></mtd></mtr></mtable></math></div>
+<p class="reflection" data-editable="true" id="interpolation-nearest">Nearest-neighbor sampling rounds the source coordinate to the nearest integer pixel and copies its color:</p>
+<div class="math-equation"><math aria-label="Nearest-neighbor color sampling" display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>I</mi><mi>NN</mi></msub><mrow><mo>(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>)</mo></mrow><mo>=</mo><mrow><mi>I</mi><mrow><mo>(</mo><mrow><mo>⌊</mo><mrow><mi>x</mi><mo>+</mo><mn>0.5</mn></mrow><mo>⌋</mo></mrow><mo>,</mo><mrow><mo>⌊</mo><mrow><mi>y</mi><mo>+</mo><mn>0.5</mn></mrow><mo>⌋</mo></mrow><mo>)</mo></mrow></mrow></mrow></math></div>
+<p class="reflection" data-editable="true" id="interpolation-bilinear">Bilinear sampling instead combines the four neighboring colors. We weight them based on how close they are to the source location (closer neighbors receive greater weights):</p>
+<div class="math-equation"><math aria-label="Bilinear weighted average of four neighboring pixel colors" display="block" xmlns="http://www.w3.org/1998/Math/MathML"><mtable columnalign="right center left"><mtr><mtd><mrow><msub><mi>I</mi><mi>BL</mi></msub><mrow><mo>(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>)</mo></mrow></mrow></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mrow><mrow><mo>(</mo><mn>1</mn><mo>−</mo><msub><mi>d</mi><mi>x</mi></msub><mo>)</mo></mrow><mrow><mo>(</mo><mn>1</mn><mo>−</mo><msub><mi>d</mi><mi>y</mi></msub><mo>)</mo></mrow><mrow><mi>I</mi><mrow><mo>(</mo><msub><mi>x</mi><mn>0</mn></msub><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo>)</mo></mrow></mrow></mrow><mo>+</mo><mrow><msub><mi>d</mi><mi>x</mi></msub><mrow><mo>(</mo><mn>1</mn><mo>−</mo><msub><mi>d</mi><mi>y</mi></msub><mo>)</mo></mrow><mrow><mi>I</mi><mrow><mo>(</mo><mrow><msub><mi>x</mi><mn>0</mn></msub><mo>+</mo><mn>1</mn></mrow><mo>,</mo><msub><mi>y</mi><mn>0</mn></msub><mo>)</mo></mrow></mrow></mrow></mrow></mtd></mtr><mtr><mtd></mtd><mtd></mtd><mtd><mrow><mo>+</mo><mrow><mrow><mo>(</mo><mn>1</mn><mo>−</mo><msub><mi>d</mi><mi>x</mi></msub><mo>)</mo></mrow><msub><mi>d</mi><mi>y</mi></msub><mrow><mi>I</mi><mrow><mo>(</mo><msub><mi>x</mi><mn>0</mn></msub><mo>,</mo><mrow><msub><mi>y</mi><mn>0</mn></msub><mo>+</mo><mn>1</mn></mrow><mo>)</mo></mrow></mrow></mrow><mo>+</mo><mrow><msub><mi>d</mi><mi>x</mi></msub><msub><mi>d</mi><mi>y</mi></msub><mrow><mi>I</mi><mrow><mo>(</mo><mrow><msub><mi>x</mi><mn>0</mn></msub><mo>+</mo><mn>1</mn></mrow><mo>,</mo><mrow><msub><mi>y</mi><mn>0</mn></msub><mo>+</mo><mn>1</mn></mrow><mo>)</mo></mrow></mrow></mrow></mrow></mtd></mtr></mtable></math></div>
+<p class="reflection" data-editable="true" id="interpolation-boundaries">The target aspect ratios for rectification were estimated, not measured. The four weights sum to one. Coordinates outside the source bounds are marked invalid. For valid coordinates at the right or bottom boundary, neighbor indices are clamped to the last available pixel; tiny floating-point boundary errors are also clamped.</p>
+<h3 data-editable="true" id="editable-40">Keyboard</h3>
+<div class="grid">
+<figure class=""><a href="images/keyboard_corners.jpg"><img alt="Source and four selected corners" loading="lazy" src="images/keyboard_corners.jpg"></a><figcaption data-editable="true" id="editable-41">Source and four selected corners</figcaption></figure>
+<figure class=""><a href="images/keyboard_nearest.png"><img alt="Nearest-neighbor rectification" loading="lazy" src="images/keyboard_nearest.png"></a><figcaption data-editable="true" id="editable-42">Nearest-neighbor rectification</figcaption></figure>
+<figure class=""><a href="images/keyboard_bilinear.png"><img alt="Bilinear rectification" loading="lazy" src="images/keyboard_bilinear.png"></a><figcaption data-editable="true" id="editable-43">Bilinear rectification</figcaption></figure>
+</div>
+<p class="metadata" data-editable="true" id="editable-44"><br></p>
+<figure class="wide"><a href="images/keyboard_detail.png"><img alt="Same rectified detail: nearest neighbor at left, bilinear at right" loading="lazy" src="images/keyboard_detail.png"></a><figcaption data-editable="true" id="editable-45">Same rectified detail: nearest neighbor at left, bilinear at right</figcaption></figure>
+<details><summary data-editable="true" id="editable-46">Rectification matrix</summary><pre data-editable="true" id="editable-47"><code>H = [[ 4.961240e-01 -1.035826e+00  8.882631e+02]
+ [ 9.938917e-01  6.555456e-01 -8.237318e+02]
+ [-2.432300e-04  3.779388e-04  1.000000e+00]]</code></pre></details>
+<div class="scroll"><table class="metrics"><thead><tr><th data-editable="true" id="editable-48">Method</th><th data-editable="true" id="editable-49">Output</th><th data-editable="true" id="editable-50">Median time, 3 runs</th></tr></thead><tbody>
+<tr><td data-editable="true" id="editable-51">nearest</td><td data-editable="true" id="editable-52">1000 × 420</td><td data-editable="true" id="editable-53">20.44 ms</td></tr>
+<tr><td data-editable="true" id="editable-54">bilinear</td><td data-editable="true" id="editable-55">1000 × 420</td><td data-editable="true" id="editable-56">48.19 ms</td></tr>
+</tbody></table></div>
+<p class="reflection" data-editable="true" id="keyboard-answer">I mapped four corners of the keyboard’s outer frame to a 1000 × 420 rectangle. The outer frame becomes rectangular and the key rows appear almost parallel. Nearest-neighbor sampling produces more abrupt pixel transitions (the blockiness) along the key outlines and lettering. Bilinear sampling is smoother by nature. The combination of the neighboring samples can be thought of as a form of linear interpolation.</p>
+<h3 data-editable="true" id="editable-57">Drain cover</h3>
+<div class="grid">
+<figure class=""><a href="images/sidewalk_corners.jpg"><img alt="Source and four selected corners" loading="lazy" src="images/sidewalk_corners.jpg"></a><figcaption data-editable="true" id="editable-58">Source and four selected corners</figcaption></figure>
+<figure class=""><a href="images/sidewalk_nearest.png"><img alt="Nearest-neighbor rectification" loading="lazy" src="images/sidewalk_nearest.png"></a><figcaption data-editable="true" id="editable-59">Nearest-neighbor rectification</figcaption></figure>
+<figure class=""><a href="images/sidewalk_bilinear.png"><img alt="Bilinear rectification" loading="lazy" src="images/sidewalk_bilinear.png"></a><figcaption data-editable="true" id="editable-60">Bilinear rectification</figcaption></figure>
+</div>
+<p class="metadata" data-editable="true" id="editable-61"><br></p>
+<figure class="wide"><a href="images/sidewalk_detail.png"><img alt="Same rectified detail: nearest neighbor at left, bilinear at right" loading="lazy" src="images/sidewalk_detail.png"></a><figcaption data-editable="true" id="editable-62">Same rectified detail: nearest neighbor at left, bilinear at right</figcaption></figure>
+<details><summary data-editable="true" id="editable-63">Rectification matrix</summary><pre data-editable="true" id="editable-64"><code>H = [[-3.883535e-01 -1.699047e-01  1.381310e+03]
+ [ 1.824574e-02 -1.003516e+00  3.759204e+03]
+ [ 1.076723e-05 -3.213253e-04  1.000000e+00]]</code></pre></details>
+<div class="scroll"><table class="metrics"><thead><tr><th data-editable="true" id="editable-65">Method</th><th data-editable="true" id="editable-66">Output</th><th data-editable="true" id="editable-67">Median time, 3 runs</th></tr></thead><tbody>
+<tr><td data-editable="true" id="editable-68">nearest</td><td data-editable="true" id="editable-69">800 × 500</td><td data-editable="true" id="editable-70">18.79 ms</td></tr>
+<tr><td data-editable="true" id="editable-71">bilinear</td><td data-editable="true" id="editable-72">800 × 500</td><td data-editable="true" id="editable-73">40.74 ms</td></tr>
+</tbody></table></div>
+<p class="reflection" data-editable="true" id="sidewalk-answer">I rectified the small drain cover beside the utility box by mapping its four outer corners to an 800 × 500 rectangle. Honestly, it's quite fascinating. I couldn't actually decipher what was on the drain cover until this class, so thanks for teaching me this! The boundary is now rectangular.</p>
+<p class="reflection" data-editable="true" id="interpolation-comparison">Nearest neighbor was faster in both measurements. This is expected. Bilinear sampling requires four source samples and weighted arithmetic, which adds computation. Its results look smoother around edges, while nearest neighbor preserves abrupt, sometimes jagged transitions (which is actually not always worse!).&nbsp;</p>
+<h2 data-editable="true" id="a4">A.4: Blend Images into Mosaics</h2>
+<p class="reflection" data-editable="true" id="mosaic-procedure">For each set, I keep the center photograph as the reference and estimate a homography from the left and right images onto that reference. Transforming all source corners (first apply H to corners and find bounds, then subtract by appropriate amounts to determine the canvas) gives the bounds of a shared canvas, including its offset from the reference origin. I inverse-warp each image into this canvas and utilise a binary mask to check validity. This mask identifies which canvas pixels have valid source data.<br><br>To blend the images together, we use feathering: pixels farther from each warped image’s valid boundary receive larger weights. I compute a weighted average at every covered pixel, dividing by the sum of weights. This normalization avoids increasing brightness simply because several images overlap. Pixels with no contributing image remain transparent in the exported mosaic.</p>
+<h3 data-editable="true" id="editable-74">Berkeley Way West</h3>
+<p class="metadata" data-editable="true" id="editable-75"><a href="#mosaic1-sources">Source photographs</a> · reference: lobby_center · full canvas: 4448 × 2276 · <a href="images/mosaic1_mosaic.png">full-resolution PNG</a></p>
+<figure class="wide"><a href="images/mosaic1_mosaic.webp"><img alt="Berkeley Way West: blended mosaic" loading="lazy" src="images/mosaic1_mosaic.webp"></a><figcaption data-editable="true" id="editable-76">Berkeley Way West: blended mosaic</figcaption></figure>
+<p class="reflection" data-editable="true" id="mosaic1-answer">The Berkeley Way West mosaic aligns much of the background, but the nearby chairs show visible ghosting, especially the blue chair and triangular things in front of it. This is likely due to my parallax error. The transform fits distant walls well but not nearby furniture. This makes sense since parallax error affects nearby objects more. Keeping the camera center fixed (instead of moving my hips), or using alignment that accounts for different depths, would address the underlying geometry far more effectively.&nbsp;</p>
+<h3 data-editable="true" id="editable-77">Innovative Genomics Institute</h3>
+<p class="metadata" data-editable="true" id="editable-78"><a href="#mosaic2-sources">Source photographs</a> · reference: campus_center · full canvas: 11011 × 3084 · <a href="images/mosaic2_mosaic.png">full-resolution PNG</a></p>
+<figure class="wide"><a href="images/mosaic2_mosaic.webp"><img alt="Innovative Genomics Institute: blended mosaic" loading="lazy" src="images/mosaic2_mosaic.webp"></a><figcaption data-editable="true" id="editable-79">Innovative Genomics Institute: blended mosaic</figcaption></figure>
+<p class="reflection" data-editable="true" id="mosaic2-answer">The Innovative Genomics Institute mosaic combines the three views fairly well, although the wide planar projection stretches the outer building regions slightly. There is also some faint blur around narrow structures such as the light poles. I'm honestly not super sure if there was some alignment error or parallax error. I suspect I may have moved the camera slightly while shooting at those awkward angles, which could introduce parallax.</p>
+<h3 data-editable="true" id="editable-80">Newspaper display</h3>
+<p class="metadata" data-editable="true" id="editable-81"><a href="#mosaic3-sources">Source photographs</a> · reference: newspapers_center · full canvas: 3462 × 2022 · <a href="images/mosaic3_mosaic.png">full-resolution PNG</a></p>
+<figure class="wide"><a href="images/mosaic3_mosaic.webp"><img alt="Newspaper display: blended mosaic" loading="lazy" src="images/mosaic3_mosaic.webp"></a><figcaption data-editable="true" id="editable-82">Newspaper display: blended mosaic</figcaption></figure>
+<p class="reflection" data-editable="true" id="mosaic3-answer">The newspaper display appears to align best of the three sets. The display frames, posts, and newspaper panels remain amazingly consistent across the overlap, and the most prominent surfaces are relatively distant from the camera. The dark background makes smaller defects harder to judge (great for me).&nbsp;</p>
+<p class="reflection" data-editable="true" id="mosaic-reflection">Introspecting, I would prioritize rotating around a fixed camera center, maintaining substantial overlap, avoiding moving subjects, and keeping exposure consistent. Keeping the camera level can help frame a horizontal panorama a bit better. I would inspect the correspondence locations and compare alignment at different depths. Moving subjects may produce ghosting so I'd watch for that too.</p>
+<section id="partb">
+<h2 data-editable="true" id="b1">B.1: Harris corners and ANMS</h2>
+<h3 data-editable="true" id="b-corners-mosaic1">Berkeley Way West</h3>
+<figure class="wide"><a href="images/partb/lobby_left_corners.jpg"><img src="images/partb/lobby_left_corners.jpg" alt="Left frame. Harris corners on the left; ANMS corners on the right." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic1-corners-caption">Left frame. Harris corners on the left; ANMS corners on the right.</figcaption></figure>
+<h3 data-editable="true" id="b-corners-mosaic2">Innovative Genomics Institute</h3>
+<figure class="wide"><a href="images/partb/campus_left_corners.jpg"><img src="images/partb/campus_left_corners.jpg" alt="Left frame. Harris corners on the left; ANMS corners on the right." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic2-corners-caption">Left frame. Harris corners on the left; ANMS corners on the right.</figcaption></figure>
+<h3 data-editable="true" id="b-corners-mosaic3">Newspaper display</h3>
+<figure class="wide"><a href="images/partb/newspapers_left_corners.jpg"><img src="images/partb/newspapers_left_corners.jpg" alt="Left frame. Harris corners on the left; ANMS corners on the right." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic3-corners-caption">Left frame. Harris corners on the left; ANMS corners on the right.</figcaption></figure>
+<p class="reflection" data-editable="true" id="b-corners-answer">Harris detects locations where image intensity changes strongly in two directions. ANMS reduces concentrated clusters of corners in highly textured areas by prioritizing corners that have no nearby significantly stronger corners. This selects a set of corners distributed more evenly across the image.</p>
+<h2 data-editable="true" id="b2">B.2: Patch descriptors</h2>
+<figure class="wide"><a href="images/partb/lobby_left_descriptors.jpg"><img src="images/partb/lobby_left_descriptors.jpg" alt="Berkeley Way West. Example descriptors from the left frame." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic1-descriptors-caption">Berkeley Way West. Example descriptors from the left frame.</figcaption></figure>
+<figure class="wide"><a href="images/partb/campus_left_descriptors.jpg"><img src="images/partb/campus_left_descriptors.jpg" alt="Innovative Genomics Institute. Example descriptors from the left frame." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic2-descriptors-caption">Innovative Genomics Institute. Example descriptors from the left frame.</figcaption></figure>
+<figure class="wide"><a href="images/partb/newspapers_left_descriptors.jpg"><img src="images/partb/newspapers_left_descriptors.jpg" alt="Newspaper display. Example descriptors from the left frame." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic3-descriptors-caption">Newspaper display. Example descriptors from the left frame.</figcaption></figure>
+<p class="reflection" data-editable="true" id="b-descriptors-answer">We first use Harris to detect corners in each image. We then use ANMS to select up to 800 corners per image. For each selected corner, we sample a 40×40 neighborhood from the blurred grayscale image, taking samples five pixels apart horizontally and vertically. This produces an 8×8 patch. We normalize the patch by subtracting its mean and dividing by its standard deviation, reducing sensitivity to brightness and contrast fluctuations. We represent the resulting patch as a list of 64 values called a descriptor. We compare descriptors across images and look for similar values, which suggest that two corners correspond to the same physical point in the scene.</p>
+<h2 data-editable="true" id="b3">B.3: Feature matching</h2>
+<h3 data-editable="true" id="b-matches-mosaic1">Berkeley Way West</h3>
+<figure class="wide"><a href="images/partb/lobby_left_matches.jpg"><img src="images/partb/lobby_left_matches.jpg" alt="Left frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic1-left-matches-caption">Left frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right.</figcaption></figure>
+<figure class="wide"><a href="images/partb/lobby_right_matches.jpg"><img src="images/partb/lobby_right_matches.jpg" alt="Right frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic1-right-matches-caption">Right frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right.</figcaption></figure>
+<h3 data-editable="true" id="b-matches-mosaic2">Innovative Genomics Institute</h3>
+<figure class="wide"><a href="images/partb/campus_left_matches.jpg"><img src="images/partb/campus_left_matches.jpg" alt="Left frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic2-left-matches-caption">Left frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right.</figcaption></figure>
+<figure class="wide"><a href="images/partb/campus_right_matches.jpg"><img src="images/partb/campus_right_matches.jpg" alt="Right frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic2-right-matches-caption">Right frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right.</figcaption></figure>
+<h3 data-editable="true" id="b-matches-mosaic3">Newspaper display</h3>
+<figure class="wide"><a href="images/partb/newspapers_left_matches.jpg"><img src="images/partb/newspapers_left_matches.jpg" alt="Left frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic3-left-matches-caption">Left frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right.</figcaption></figure>
+<figure class="wide"><a href="images/partb/newspapers_right_matches.jpg"><img src="images/partb/newspapers_right_matches.jpg" alt="Right frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic3-right-matches-caption">Right frame paired with the center frame. Candidate matches on the left; RANSAC inliers on the right.</figcaption></figure>
+<p class="reflection" data-editable="true" id="b-matching-answer">We compare descriptors using Euclidean distance: <code>distance = np.sqrt(np.sum((descriptor_a - descriptor_b) ** 2))</code>. For each descriptor, we find its closest and second-closest matches in the other image. We keep the closest match if its distance divided by the second-closest distance is less than 0.75.<br/><br/>We also require mutual matching. If corner A’s closest match is corner B, then corner B’s closest match must also be corner A.</p>
+<p class="reflection" data-editable="true" id="b-match-errors-answer">If we scrutinize where some of the blurring occurred in the first image, you might be able to see that a couple of the lines near the chair don't perfectly align with their designated corner. Focusing specifically on the brown triangular chair at the bottom, it is also possible that the corners detected within that chair have repetitive surrounding textures, which could cause mismatches.</p>
+<h2 data-editable="true" id="b4">B.4: RANSAC and mosaics</h2>
+<p class="reflection" data-editable="true" id="b-ransac-answer">We randomly select four candidate matching pairs. Each pair contains one point from the source image and the proposed corresponding point in the other image. We then compute a homography. After computing this homography, we apply it to transform the source point in every candidate pair and measure its distance from its proposed match. Pairs with an error below three pixels are called <strong>inliers</strong>. We repeat this process for 4,000 random groups of four, calculating the number of inliers for each group. We keep the homography with the most inliers and recompute it using all of those inliers.</p>
+<h3 data-editable="true" id="b-result-mosaic1">Berkeley Way West</h3>
+<table class="metrics"><thead><tr><th>Pair</th><th>Part A pairs</th><th>Part A RMSE (px)</th><th>Part B candidates</th><th>Part B inliers</th><th>Part B RMSE (px)</th></tr></thead><tbody><tr><td>lobby_left → lobby_center</td><td>16</td><td>4.628</td><td>210</td><td>79</td><td>1.349</td></tr><tr><td>lobby_right → lobby_center</td><td>8</td><td>5.423</td><td>116</td><td>56</td><td>1.779</td></tr></tbody></table>
+<figure class="wide"><a href="images/partb/mosaic1_mosaic.jpg"><img src="images/partb/mosaic1_mosaic.jpg" alt="Automatic mosaic." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic1-automatic-caption">Automatic mosaic.</figcaption></figure>
+<figure class="wide"><a href="images/partb/mosaic1_comparison.jpg"><img src="images/partb/mosaic1_comparison.jpg" alt="Left: Part A mosaic using selected point correspondences. Right: Part B automatic mosaic." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic1-comparison-caption">Left: Part A mosaic using selected point correspondences. Right: Part B automatic mosaic.</figcaption></figure>
+<p class="reflection" data-editable="true" id="b-mosaic1-result-answer">The nearby chairs still show ghosting. This is likely caused by parallax from changes in the camera’s position while I was taking these photographs. Because the chairs and the background are at different depths, a single homography may not align both accurately.</p>
+<h3 data-editable="true" id="b-result-mosaic2">Innovative Genomics Institute</h3>
+<table class="metrics"><thead><tr><th>Pair</th><th>Part A pairs</th><th>Part A RMSE (px)</th><th>Part B candidates</th><th>Part B inliers</th><th>Part B RMSE (px)</th></tr></thead><tbody><tr><td>campus_left → campus_center</td><td>6</td><td>1.541</td><td>13</td><td>8</td><td>0.622</td></tr><tr><td>campus_right → campus_center</td><td>8</td><td>2.146</td><td>47</td><td>34</td><td>1.496</td></tr></tbody></table>
+<figure class="wide"><a href="images/partb/mosaic2_mosaic.jpg"><img src="images/partb/mosaic2_mosaic.jpg" alt="Automatic mosaic." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic2-automatic-caption">Automatic mosaic.</figcaption></figure>
+<figure class="wide"><a href="images/partb/mosaic2_comparison.jpg"><img src="images/partb/mosaic2_comparison.jpg" alt="Left: Part A mosaic using selected point correspondences. Right: Part B automatic mosaic." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic2-comparison-caption">Left: Part A mosaic using selected point correspondences. Right: Part B automatic mosaic.</figcaption></figure>
+<p class="reflection" data-editable="true" id="b-mosaic2-result-answer">The Part A mosaic shows pronounced stretching near the outer building regions. The campus-left homography uses eight inlier pairs in Part B, compared with 6 selected matching pairs in Part A. The selected Part A points cover a limited region, so a low fitting error does not guarantee alignment elsewhere. Match accuracy and spatial distribution affect the estimated homography.</p>
+<h3 data-editable="true" id="b-result-mosaic3">Newspaper display</h3>
+<table class="metrics"><thead><tr><th>Pair</th><th>Part A pairs</th><th>Part A RMSE (px)</th><th>Part B candidates</th><th>Part B inliers</th><th>Part B RMSE (px)</th></tr></thead><tbody><tr><td>newspapers_left → newspapers_center</td><td>10</td><td>3.151</td><td>253</td><td>235</td><td>1.176</td></tr><tr><td>newspapers_right → newspapers_center</td><td>12</td><td>2.693</td><td>389</td><td>293</td><td>1.098</td></tr></tbody></table>
+<figure class="wide"><a href="images/partb/mosaic3_mosaic.jpg"><img src="images/partb/mosaic3_mosaic.jpg" alt="Automatic mosaic." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic3-automatic-caption">Automatic mosaic.</figcaption></figure>
+<figure class="wide"><a href="images/partb/mosaic3_comparison.jpg"><img src="images/partb/mosaic3_comparison.jpg" alt="Left: Part A mosaic using selected point correspondences. Right: Part B automatic mosaic." loading="lazy"></a><figcaption data-editable="true" id="b-mosaic3-comparison-caption">Left: Part A mosaic using selected point correspondences. Right: Part B automatic mosaic.</figcaption></figure>
+<p class="reflection" data-editable="true" id="b-mosaic3-result-answer">Looking at this comparison, the original mosaic was already really good. So there is a negligible difference between Part A and Part B.&nbsp;</p>
+
+<p class="reflection" data-editable="true" id="b-reflection-answer">To improve the results, I would keep the camera’s center of projection as fixed as possible while rotating between photographs. This would reduce parallax between nearby and distant objects.</p>
+</section>
+
+
+
+
+
+<p class="metadata" id="references">Reference: <a href="https://cal-cs180.github.io/fa26/hw/proj3/Papers/MOPS.pdf">Brown et al., Multi-Image Matching using Multi-Scale Oriented Patches</a>.</p>
+</body></html>
